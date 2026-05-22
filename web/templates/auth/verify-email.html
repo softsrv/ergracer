@@ -1,0 +1,45 @@
+{{define "title"}}Verify Email{{end}}
+
+{{define "content"}}
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body">
+    <h2 class="card-title text-2xl justify-center mb-2">Verify Your Email</h2>
+    <p class="text-sm text-base-content/70 mb-4 text-center">
+      Enter the 6-digit code we sent to your email address. It expires in 15 minutes.
+    </p>
+
+    <div id="form-error"></div>
+    <div id="form-flash"></div>
+
+    <form hx-post="/auth/verify-email"
+          hx-target="#form-error"
+          hx-swap="innerHTML"
+          class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+
+      <div class="form-control">
+        <label class="label" for="code">
+          <span class="label-text">Verification Code</span>
+        </label>
+        <input id="code" name="code" type="text"
+               inputmode="numeric" pattern="[0-9]{6}"
+               maxlength="6" required
+               class="input input-bordered w-full text-center text-2xl tracking-widest"
+               autocomplete="one-time-code" />
+      </div>
+
+      <button type="submit" class="btn btn-primary w-full">Verify</button>
+    </form>
+
+    <div class="divider text-xs">didn't receive a code?</div>
+
+    <form hx-post="/auth/resend-verification"
+          hx-target="#form-flash"
+          hx-swap="innerHTML"
+          hx-include="[name='csrf_token']">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}" />
+      <button type="submit" class="btn btn-ghost btn-sm w-full">Resend code</button>
+    </form>
+  </div>
+</div>
+{{end}}
