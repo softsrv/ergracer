@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- To switch themes, change data-theme to any DaisyUI theme name.
+     Built-in themes: light, dark, cupcake, dracula, synthwave, retro,
+     cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel,
+     fantasy, wireframe, black, luxury, cmyk, autumn, business, acid,
+     lemonade, night, coffee, winter, dim, nord, sunset, and more.
+     Full list: https://daisyui.com/docs/themes/ -->
+<html lang="en" data-theme="dracula">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{block "title" .}}App{{end}}</title>
+  <link rel="stylesheet" href="/static/css/dist/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0-beta3" integrity="sha384-bq4nTap5u8w4XlVP8JHkDioQVZBI5wUx5PxNwlbCq27H5QJ+q0CSeJcTYU+PLdCp" crossorigin="anonymous"></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body class="min-h-screen bg-base-200">
+  <nav class="navbar bg-base-100 shadow-sm px-4">
+    <div class="flex-1">
+      <a href="/" class="text-xl font-bold">App</a>
+    </div>
+    <div class="flex-none gap-2">
+      {{block "nav-actions" .}}{{end}}
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8 max-w-md">
+    {{block "content" .}}{{end}}
+  </main>
+</body>
+</html>
