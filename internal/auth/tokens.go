@@ -44,13 +44,9 @@ func CompareTokenHash(raw, storedHash string) bool {
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(storedHash)) == 1
 }
 
-// GenerateVerificationCode returns a 6-digit numeric code as a zero-padded string.
-func GenerateVerificationCode() (string, error) {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate verification code: %w", err)
-	}
-	// Use first 3 bytes to produce a value 0–999999
-	n := (uint32(b[0])<<16 | uint32(b[1])<<8 | uint32(b[2])) % 1_000_000
-	return fmt.Sprintf("%06d", n), nil
+// GenerateVerificationToken creates a cryptographically random URL-safe token
+// for email verification links, returning both the raw form (for the URL) and
+// its SHA-256 hash (for storage).
+func GenerateVerificationToken() (raw, hashed string, err error) {
+	return generateRandomToken("verification token")
 }

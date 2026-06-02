@@ -28,7 +28,7 @@ func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 }
 
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
-SELECT id, user_id, token_hash, token_family, previous_token_id, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at FROM refresh_tokens WHERE token_hash = $1 LIMIT 1
+SELECT id, user_id, token_hash, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at FROM refresh_tokens WHERE token_hash = $1 LIMIT 1
 `
 
 func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error) {
@@ -38,8 +38,6 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 		&i.ID,
 		&i.UserID,
 		&i.TokenHash,
-		&i.TokenFamily,
-		&i.PreviousTokenID,
 		&i.DeviceName,
 		&i.IpAddress,
 		&i.UserAgent,
@@ -52,7 +50,7 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 }
 
 const getRefreshTokenByID = `-- name: GetRefreshTokenByID :one
-SELECT id, user_id, token_hash, token_family, previous_token_id, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at FROM refresh_tokens WHERE id = $1 LIMIT 1
+SELECT id, user_id, token_hash, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at FROM refresh_tokens WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (RefreshToken, error) {
@@ -62,8 +60,6 @@ func (q *Queries) GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (Refres
 		&i.ID,
 		&i.UserID,
 		&i.TokenHash,
-		&i.TokenFamily,
-		&i.PreviousTokenID,
 		&i.DeviceName,
 		&i.IpAddress,
 		&i.UserAgent,
@@ -77,22 +73,20 @@ func (q *Queries) GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (Refres
 
 const insertRefreshToken = `-- name: InsertRefreshToken :one
 INSERT INTO refresh_tokens (
-    id, user_id, token_hash, token_family, previous_token_id,
+    id, user_id, token_hash,
     device_name, ip_address, user_agent, expires_at, created_at, last_used_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-RETURNING id, user_id, token_hash, token_family, previous_token_id, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+RETURNING id, user_id, token_hash, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at
 `
 
 type InsertRefreshTokenParams struct {
-	ID              uuid.UUID          `json:"id"`
-	UserID          uuid.UUID          `json:"user_id"`
-	TokenHash       string             `json:"token_hash"`
-	TokenFamily     uuid.UUID          `json:"token_family"`
-	PreviousTokenID pgtype.UUID        `json:"previous_token_id"`
-	DeviceName      pgtype.Text        `json:"device_name"`
-	IpAddress       *netip.Addr        `json:"ip_address"`
-	UserAgent       pgtype.Text        `json:"user_agent"`
-	ExpiresAt       pgtype.Timestamptz `json:"expires_at"`
+	ID         uuid.UUID          `json:"id"`
+	UserID     uuid.UUID          `json:"user_id"`
+	TokenHash  string             `json:"token_hash"`
+	DeviceName pgtype.Text        `json:"device_name"`
+	IpAddress  *netip.Addr        `json:"ip_address"`
+	UserAgent  pgtype.Text        `json:"user_agent"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (RefreshToken, error) {
@@ -100,8 +94,6 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 		arg.ID,
 		arg.UserID,
 		arg.TokenHash,
-		arg.TokenFamily,
-		arg.PreviousTokenID,
 		arg.DeviceName,
 		arg.IpAddress,
 		arg.UserAgent,
@@ -112,8 +104,6 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 		&i.ID,
 		&i.UserID,
 		&i.TokenHash,
-		&i.TokenFamily,
-		&i.PreviousTokenID,
 		&i.DeviceName,
 		&i.IpAddress,
 		&i.UserAgent,
@@ -126,7 +116,7 @@ func (q *Queries) InsertRefreshToken(ctx context.Context, arg InsertRefreshToken
 }
 
 const listActiveRefreshTokensByUserID = `-- name: ListActiveRefreshTokensByUserID :many
-SELECT id, user_id, token_hash, token_family, previous_token_id, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at FROM refresh_tokens
+SELECT id, user_id, token_hash, device_name, ip_address, user_agent, expires_at, created_at, last_used_at, revoked_at FROM refresh_tokens
 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
 ORDER BY last_used_at DESC
 `
@@ -144,8 +134,6 @@ func (q *Queries) ListActiveRefreshTokensByUserID(ctx context.Context, userID uu
 			&i.ID,
 			&i.UserID,
 			&i.TokenHash,
-			&i.TokenFamily,
-			&i.PreviousTokenID,
 			&i.DeviceName,
 			&i.IpAddress,
 			&i.UserAgent,
@@ -179,15 +167,6 @@ UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1
 
 func (q *Queries) RevokeRefreshToken(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeRefreshToken, id)
-	return err
-}
-
-const revokeTokenFamily = `-- name: RevokeTokenFamily :exec
-UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_family = $1 AND revoked_at IS NULL
-`
-
-func (q *Queries) RevokeTokenFamily(ctx context.Context, tokenFamily uuid.UUID) error {
-	_, err := q.db.Exec(ctx, revokeTokenFamily, tokenFamily)
 	return err
 }
 

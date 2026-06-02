@@ -30,7 +30,7 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	authH := handlers.NewAuthHandler(cfg.AuthSvc, cfg.Renderer, cfg.Secure)
-	sessH := handlers.NewSessionHandler(cfg.UserSvc, cfg.Renderer)
+	sessH := handlers.NewSessionHandler(cfg.UserSvc, cfg.Renderer, cfg.Secure)
 
 	// ── Rate limiters ─────────────────────────────────────────────────────────
 	// Each limiter spawns a sweep goroutine that exits when ctx is cancelled.
@@ -41,6 +41,7 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	resetRL    := middleware.NewRateLimiter(ctx, 5,  time.Hour,      middleware.IPKeyFunc)
 
 	authMW := middleware.Authenticate(cfg.Queries, cfg.JWTSecret)
+	verifiedMW := func(h http.Handler) http.Handler { return authMW(middleware.RequireEmailVerified(h)) }
 
 	// ── Static assets ─────────────────────────────────────────────────────────
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
@@ -66,25 +67,23 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	mux.Handle("POST /auth/reset-password",  resetRL.Middleware(http.HandlerFunc(authH.ResetPassword)))
 
 	// ── Protected routes ──────────────────────────────────────────────────────
-	mux.Handle("POST /auth/logout",               authMW(http.HandlerFunc(authH.Logout)))
-	mux.Handle("POST /auth/verify-email",         authMW(http.HandlerFunc(authH.VerifyEmail)))
-	mux.Handle("POST /auth/resend-verification",  authMW(http.HandlerFunc(authH.ResendVerification)))
-	mux.Handle("GET /auth/sessions",         authMW(http.HandlerFunc(sessH.ListSessions)))
-	mux.Handle("DELETE /auth/sessions/{id}", authMW(http.HandlerFunc(sessH.RevokeSession)))
+	mux.Handle("POST /auth/logout",              authMW(http.HandlerFunc(authH.Logout)))
+	mux.Handle("POST /auth/resend-verification", authMW(http.HandlerFunc(authH.ResendVerification)))
 
-	mux.Handle("GET /dashboard", authMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Email verification: public GET so users can click directly from their inbox.
+	mux.HandleFunc("GET /auth/verify-email", authH.VerifyEmail)
+	mux.Handle("GET /auth/sessions",         verifiedMW(http.HandlerFunc(sessH.ListSessions)))
+	mux.Handle("DELETE /auth/sessions/{id}", verifiedMW(http.HandlerFunc(sessH.RevokeSession)))
+
+	mux.Handle("GET /dashboard", verifiedMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, _ := middleware.UserFromContext(r.Context())
 		cfg.Renderer.Page(w, http.StatusOK, "dashboard.html", map[string]any{
-			"User":      user,
-			"CSRFToken": middleware.CSRFTokenFromRequest(r),
+			"User": user,
 		})
 	})))
 
 	// ── Global middleware chain ───────────────────────────────────────────────
-	// CSRF is passed cfg.Secure so the CSRF cookie carries the Secure flag in production.
 	return middleware.RequestID(
-		middleware.Logging(
-			middleware.CSRF(cfg.Secure)(mux),
-		),
+		middleware.Logging(mux),
 	)
 }

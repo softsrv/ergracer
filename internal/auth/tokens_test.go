@@ -46,21 +46,20 @@ func TestCompareTokenHash(t *testing.T) {
 	}
 }
 
-func TestGenerateVerificationCode(t *testing.T) {
+func TestGenerateVerificationToken(t *testing.T) {
 	t.Parallel()
 
-	for i := 0; i < 20; i++ {
-		code, err := auth.GenerateVerificationCode()
-		if err != nil {
-			t.Fatalf("GenerateVerificationCode: %v", err)
-		}
-		if len(code) != 6 {
-			t.Errorf("expected 6-digit code, got %q (len %d)", code, len(code))
-		}
-		for _, ch := range code {
-			if ch < '0' || ch > '9' {
-				t.Errorf("non-digit in code: %q", code)
-			}
-		}
+	raw, hashed, err := auth.GenerateVerificationToken()
+	if err != nil {
+		t.Fatalf("GenerateVerificationToken: %v", err)
+	}
+	if raw == "" || hashed == "" {
+		t.Fatal("expected non-empty raw and hashed tokens")
+	}
+	if raw == hashed {
+		t.Fatal("raw and hashed must differ")
+	}
+	if !auth.CompareTokenHash(raw, hashed) {
+		t.Fatal("CompareTokenHash must return true for matching pair")
 	}
 }

@@ -1,8 +1,8 @@
 -- name: InsertRefreshToken :one
 INSERT INTO refresh_tokens (
-    id, user_id, token_hash, token_family, previous_token_id,
+    id, user_id, token_hash,
     device_name, ip_address, user_agent, expires_at, created_at, last_used_at
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 RETURNING *;
 
 -- name: GetRefreshTokenByHash :one
@@ -13,9 +13,6 @@ SELECT * FROM refresh_tokens WHERE id = $1 LIMIT 1;
 
 -- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1;
-
--- name: RevokeTokenFamily :exec
-UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_family = $1 AND revoked_at IS NULL;
 
 -- name: RevokeAllUserRefreshTokens :exec
 UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL;

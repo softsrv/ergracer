@@ -38,6 +38,7 @@ type TokenResult struct {
 	AccessTokenExpiry  time.Time
 	RefreshToken       string
 	RefreshTokenExpiry time.Time
+	EmailVerified      bool
 }
 
 // pgxBeginner is satisfied by *pgxpool.Pool.
@@ -126,7 +127,7 @@ func (s *AuthService) Register(ctx context.Context, rawEmail, password string) (
 	}
 
 	s.goSend(func() {
-		if sendErr := s.sendVerificationCode(context.Background(), user); sendErr != nil {
+		if sendErr := s.sendVerificationEmail(context.Background(), user); sendErr != nil {
 			slog.Error("send verification code", "error", sendErr, "user_id", user.ID)
 		}
 	})
@@ -171,7 +172,12 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string, meta
 		slog.Error("reset login attempts", "error", err, "user_id", user.ID)
 	}
 
-	return s.issueTokenPair(ctx, user.ID, user.Email, uuid.Nil, nil, meta)
+	result, err := s.issueTokenPair(ctx, user.ID, user.Email, meta)
+	if err != nil {
+		return TokenResult{}, err
+	}
+	result.EmailVerified = user.EmailVerified
+	return result, nil
 }
 
 // Logout revokes the given raw refresh token.
@@ -187,7 +193,9 @@ func (s *AuthService) Logout(ctx context.Context, rawRefreshToken string) error 
 	return s.q.RevokeRefreshToken(ctx, rt.ID)
 }
 
-// Refresh validates a raw refresh token, rotates it, and returns a new token pair.
+// Refresh validates a raw refresh token, issues a new access token, and returns
+// the same refresh token (no rotation). The refresh token's last_used_at and
+// device metadata are updated in place.
 func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string, meta DeviceMeta) (TokenResult, error) {
 	hash := auth.HashToken(rawRefreshToken)
 
@@ -199,13 +207,7 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string, meta 
 		return TokenResult{}, fmt.Errorf("get refresh token: %w", err)
 	}
 
-	// Theft detection: already-revoked token reuse means family is compromised.
 	if rt.RevokedAt.Valid {
-		slog.Warn("refresh token reuse detected — revoking family",
-			"token_id", rt.ID, "token_family", rt.TokenFamily)
-		if revokeErr := s.q.RevokeTokenFamily(ctx, rt.TokenFamily); revokeErr != nil {
-			slog.Error("revoke token family", "token_family", rt.TokenFamily, "error", revokeErr)
-		}
 		return TokenResult{}, ErrTokenRevoked
 	}
 
@@ -218,8 +220,26 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string, meta 
 		return TokenResult{}, fmt.Errorf("get user: %w", err)
 	}
 
-	prevID := rt.ID
-	return s.issueTokenPair(ctx, user.ID, user.Email, rt.TokenFamily, &prevID, meta)
+	if err := s.q.UpdateRefreshTokenLastUsed(ctx, db.UpdateRefreshTokenLastUsedParams{
+		ID:         rt.ID,
+		DeviceName: pgtype.Text{String: meta.DeviceName, Valid: meta.DeviceName != ""},
+		IpAddress:  meta.IPAddress,
+		UserAgent:  pgtype.Text{String: meta.UserAgent, Valid: meta.UserAgent != ""},
+	}); err != nil {
+		slog.Error("update refresh token last used", "token_id", rt.ID, "error", err)
+	}
+
+	tp, err := auth.IssueAccessToken(user.ID, user.Email, s.cfg.JWTSecret, s.cfg.AccessExpiry)
+	if err != nil {
+		return TokenResult{}, fmt.Errorf("issue access token: %w", err)
+	}
+
+	return TokenResult{
+		AccessToken:        tp.AccessToken,
+		AccessTokenExpiry:  tp.ExpiresAt,
+		RefreshToken:       rawRefreshToken,
+		RefreshTokenExpiry: rt.ExpiresAt.Time,
+	}, nil
 }
 
 // RequestPasswordReset sends a reset email if the address exists.
@@ -337,32 +357,39 @@ func (s *AuthService) CompletePasswordReset(ctx context.Context, rawToken, newPa
 	return nil
 }
 
-// VerifyEmail validates a 6-digit code for the given user.
-func (s *AuthService) VerifyEmail(ctx context.Context, userID uuid.UUID, code string) error {
-	record, err := s.q.GetLatestUnusedVerificationCode(ctx, userID)
+// VerifyEmail validates a raw verification token from a link, marks the user's
+// email as verified, and issues a token pair so the click auto-logs them in.
+func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string, meta DeviceMeta) (TokenResult, error) {
+	hash := auth.HashToken(rawToken)
+	record, err := s.q.GetVerificationCodeByTokenHash(ctx, hash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrTokenNotFound
+			return TokenResult{}, ErrTokenNotFound
 		}
-		return fmt.Errorf("get verification code: %w", err)
+		return TokenResult{}, fmt.Errorf("get verification code: %w", err)
 	}
-
-	// Constant-time comparison of the submitted code against the stored plaintext code.
-	if len(code) != len(record.Code) {
-		return ErrTokenInvalid
+	if record.UsedAt.Valid {
+		return TokenResult{}, ErrTokenUsed
 	}
-	var diff byte
-	for i := range code {
-		diff |= code[i] ^ record.Code[i]
+	if record.ExpiresAt.Time.Before(time.Now()) {
+		return TokenResult{}, ErrTokenExpired
 	}
-	if diff != 0 {
-		return ErrTokenInvalid
-	}
-
 	if err := s.q.MarkVerificationCodeUsed(ctx, record.ID); err != nil {
-		return fmt.Errorf("mark code used: %w", err)
+		return TokenResult{}, fmt.Errorf("mark code used: %w", err)
 	}
-	return s.q.SetEmailVerified(ctx, userID)
+	if err := s.q.SetEmailVerified(ctx, record.UserID); err != nil {
+		return TokenResult{}, fmt.Errorf("set email verified: %w", err)
+	}
+	user, err := s.q.GetUserByID(ctx, record.UserID)
+	if err != nil {
+		return TokenResult{}, fmt.Errorf("get user: %w", err)
+	}
+	result, err := s.issueTokenPair(ctx, user.ID, user.Email, meta)
+	if err != nil {
+		return TokenResult{}, err
+	}
+	result.EmailVerified = true
+	return result, nil
 }
 
 // ResendVerification issues a fresh verification code if rate limit not exceeded.
@@ -380,10 +407,15 @@ func (s *AuthService) ResendVerification(ctx context.Context, userID uuid.UUID) 
 		return fmt.Errorf("count codes: %w", err)
 	}
 	if count >= 3 {
-		return ErrRateLimited
+		oldest, oldestErr := s.q.GetOldestRecentVerificationCode(ctx, userID)
+		retryAt := time.Now().Add(time.Hour)
+		if oldestErr == nil && oldest.Valid {
+			retryAt = oldest.Time.Add(time.Hour)
+		}
+		return RateLimitedError{RetryAt: retryAt}
 	}
 
-	return s.sendVerificationCode(ctx, user)
+	return s.sendVerificationEmail(ctx, user)
 }
 
 // ── private helpers ───────────────────────────────────────────────────────────
@@ -392,8 +424,6 @@ func (s *AuthService) issueTokenPair(
 	ctx context.Context,
 	userID uuid.UUID,
 	userEmail string,
-	existingFamily uuid.UUID,
-	previousTokenID *uuid.UUID,
 	meta DeviceMeta,
 ) (TokenResult, error) {
 	tp, err := auth.IssueAccessToken(userID, userEmail, s.cfg.JWTSecret, s.cfg.AccessExpiry)
@@ -406,59 +436,23 @@ func (s *AuthService) issueTokenPair(
 		return TokenResult{}, fmt.Errorf("generate refresh token: %w", err)
 	}
 
-	tokenFamily := existingFamily
-	if tokenFamily == uuid.Nil {
-		tokenFamily, err = uuid.NewV7()
-		if err != nil {
-			return TokenResult{}, fmt.Errorf("generate token family: %w", err)
-		}
-	}
-
 	newID, err := uuid.NewV7()
 	if err != nil {
 		return TokenResult{}, fmt.Errorf("generate token id: %w", err)
 	}
 	expiresAt := time.Now().Add(s.cfg.RefreshExpiry)
 
-	// Convert optional fields to pgtype nullable wrappers.
-	prevTokenID := pgtype.UUID{}
-	if previousTokenID != nil {
-		prevTokenID = pgtype.UUID{Bytes: *previousTokenID, Valid: true}
-	}
-	deviceName := pgtype.Text{String: meta.DeviceName, Valid: meta.DeviceName != ""}
-	userAgent := pgtype.Text{String: meta.UserAgent, Valid: meta.UserAgent != ""}
-
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return TokenResult{}, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback(ctx) //nolint:errcheck
-
-	qtx := s.q.WithTx(tx)
-
-	_, err = qtx.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
-		ID:              newID,
-		UserID:          userID,
-		TokenHash:       hashedRefresh,
-		TokenFamily:     tokenFamily,
-		PreviousTokenID: prevTokenID,
-		DeviceName:      deviceName,
-		IpAddress:       meta.IPAddress,
-		UserAgent:       userAgent,
-		ExpiresAt:       pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	_, err = s.q.InsertRefreshToken(ctx, db.InsertRefreshTokenParams{
+		ID:         newID,
+		UserID:     userID,
+		TokenHash:  hashedRefresh,
+		DeviceName: pgtype.Text{String: meta.DeviceName, Valid: meta.DeviceName != ""},
+		IpAddress:  meta.IPAddress,
+		UserAgent:  pgtype.Text{String: meta.UserAgent, Valid: meta.UserAgent != ""},
+		ExpiresAt:  pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	})
 	if err != nil {
 		return TokenResult{}, fmt.Errorf("insert refresh token: %w", err)
-	}
-
-	if previousTokenID != nil {
-		if err := qtx.RevokeRefreshToken(ctx, *previousTokenID); err != nil {
-			return TokenResult{}, fmt.Errorf("revoke old refresh token: %w", err)
-		}
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return TokenResult{}, fmt.Errorf("commit: %w", err)
 	}
 
 	return TokenResult{
@@ -469,10 +463,10 @@ func (s *AuthService) issueTokenPair(
 	}, nil
 }
 
-func (s *AuthService) sendVerificationCode(ctx context.Context, user db.User) error {
-	code, err := auth.GenerateVerificationCode()
+func (s *AuthService) sendVerificationEmail(ctx context.Context, user db.User) error {
+	rawToken, hashedToken, err := auth.GenerateVerificationToken()
 	if err != nil {
-		return err
+		return fmt.Errorf("generate verification token: %w", err)
 	}
 
 	id, err := uuid.NewV7()
@@ -482,13 +476,14 @@ func (s *AuthService) sendVerificationCode(ctx context.Context, user db.User) er
 	_, err = s.q.InsertEmailVerificationCode(ctx, db.InsertEmailVerificationCodeParams{
 		ID:        id,
 		UserID:    user.ID,
-		Code:      code,
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(15 * time.Minute), Valid: true},
+		TokenHash: hashedToken,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(24 * time.Hour), Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("insert verification code: %w", err)
 	}
 
-	subj, htmlBody, text := email.VerificationEmail(s.cfg.AppName, code)
+	verifyURL := fmt.Sprintf("%s/auth/verify-email?token=%s", s.cfg.AppBaseURL, rawToken)
+	subj, htmlBody, text := email.VerificationEmail(s.cfg.AppName, verifyURL)
 	return s.mailer.Send(user.Email, subj, htmlBody, text)
 }

@@ -3,10 +3,12 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +29,7 @@ type authServicer interface {
 	Refresh(ctx context.Context, rawRefreshToken string, meta app.DeviceMeta) (app.TokenResult, error)
 	RequestPasswordReset(ctx context.Context, rawEmail string) error
 	CompletePasswordReset(ctx context.Context, rawToken, newPassword string) error
-	VerifyEmail(ctx context.Context, userID uuid.UUID, code string) error
+	VerifyEmail(ctx context.Context, rawToken string, meta app.DeviceMeta) (app.TokenResult, error)
 	ResendVerification(ctx context.Context, userID uuid.UUID) error
 }
 
@@ -46,35 +48,34 @@ func NewAuthHandler(authSvc authServicer, renderer *TemplateRenderer, secure boo
 // ── Pages ─────────────────────────────────────────────────────────────────────
 
 func (h *AuthHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	h.renderer.Page(w, http.StatusOK, "auth/login.html", map[string]any{
-		"CSRFToken": middleware.CSRFTokenFromRequest(r),
-	})
+	h.renderer.Page(w, http.StatusOK, "auth/login.html", nil)
 }
 
 func (h *AuthHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
-	h.renderer.Page(w, http.StatusOK, "auth/register.html", map[string]any{
-		"CSRFToken": middleware.CSRFTokenFromRequest(r),
-	})
+	h.renderer.Page(w, http.StatusOK, "auth/register.html", nil)
 }
 
 func (h *AuthHandler) ForgotPasswordPage(w http.ResponseWriter, r *http.Request) {
-	h.renderer.Page(w, http.StatusOK, "auth/forgot-password.html", map[string]any{
-		"CSRFToken": middleware.CSRFTokenFromRequest(r),
-	})
+	h.renderer.Page(w, http.StatusOK, "auth/forgot-password.html", nil)
 }
 
 func (h *AuthHandler) ResetPasswordPage(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	h.renderer.Page(w, http.StatusOK, "auth/reset-password.html", map[string]any{
-		"CSRFToken": middleware.CSRFTokenFromRequest(r),
-		"Token":     token,
+		"Token": token,
 	})
 }
 
 func (h *AuthHandler) VerifyEmailPage(w http.ResponseWriter, r *http.Request) {
-	h.renderer.Page(w, http.StatusOK, "auth/verify-email.html", map[string]any{
-		"CSRFToken": middleware.CSRFTokenFromRequest(r),
-	})
+	data := map[string]any{
+		"Resent": r.URL.Query().Get("resent") == "1",
+	}
+	if ra := r.URL.Query().Get("retry_after"); ra != "" {
+		if mins, err := strconv.Atoi(ra); err == nil && mins > 0 {
+			data["RetryAfter"] = mins
+		}
+	}
+	h.renderer.Page(w, http.StatusOK, "auth/verify-email.html", data)
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -131,6 +132,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setTokenCookies(w, result)
+	if !result.EmailVerified {
+		htmxRedirect(w, "/verify-email")
+		return
+	}
 	htmxRedirect(w, "/dashboard")
 }
 
@@ -205,29 +210,34 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	htmxRedirect(w, "/login")
 }
 
+// VerifyEmail handles the link the user clicks from their inbox.
+// It is a public GET — no session required — because the token itself is the credential.
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		slog.WarnContext(r.Context(), "verify email: parse form", "error", err)
-		h.renderError(w, r, http.StatusBadRequest, "Invalid form data")
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Redirect(w, r, "/verify-email", http.StatusSeeOther)
 		return
 	}
 
-	user, ok := middleware.UserFromContext(r.Context())
-	if !ok {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+	meta := deviceMeta(r)
+	result, err := h.auth.VerifyEmail(r.Context(), token, meta)
+	if err != nil {
+		slog.WarnContext(r.Context(), "verify email failed", "error", err)
+		data := map[string]any{}
+		if errors.Is(err, app.ErrTokenExpired) {
+			data["Expired"] = true
+		} else {
+			data["Error"] = true
+		}
+		h.renderer.Page(w, http.StatusOK, "auth/verify-email.html", data)
 		return
 	}
 
-	if err := h.auth.VerifyEmail(r.Context(), user.ID, r.FormValue("code")); err != nil {
-		slog.WarnContext(r.Context(), "verify email failed", "user_id", user.ID, "error", err)
-		h.renderError(w, r, http.StatusUnprocessableEntity, "Invalid or expired code")
-		return
-	}
-
-	htmxRedirect(w, "/dashboard")
+	h.setTokenCookies(w, result)
+	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }
 
-// ResendVerification issues a fresh verification code to the authenticated user.
+// ResendVerification issues a fresh verification link to the authenticated user.
 func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
@@ -237,17 +247,21 @@ func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request)
 
 	if err := h.auth.ResendVerification(r.Context(), user.ID); err != nil {
 		if errors.Is(err, app.ErrEmailAlreadyVerified) {
-			htmxRedirect(w, "/dashboard")
+			http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+			return
+		}
+		var rlErr app.RateLimitedError
+		if errors.As(err, &rlErr) {
+			mins := int(time.Until(rlErr.RetryAt).Minutes()) + 1
+			http.Redirect(w, r, fmt.Sprintf("/verify-email?retry_after=%d", mins), http.StatusSeeOther)
 			return
 		}
 		slog.WarnContext(r.Context(), "resend verification failed", "user_id", user.ID, "error", err)
-		h.renderError(w, r, http.StatusUnprocessableEntity, err.Error())
+		http.Redirect(w, r, "/verify-email", http.StatusSeeOther)
 		return
 	}
 
-	h.renderer.Partial(w, http.StatusOK, "partials/flash.html", map[string]any{
-		"Message": "A new verification code has been sent to your email.",
-	})
+	http.Redirect(w, r, "/verify-email?resent=1", http.StatusSeeOther)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -265,7 +279,7 @@ func (h *AuthHandler) setTokenCookies(w http.ResponseWriter, result app.TokenRes
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
-		Path:     "/auth/refresh",
+		Path:     "/auth",
 		HttpOnly: true,
 		Secure:   h.secure,
 		SameSite: http.SameSiteStrictMode,
@@ -292,7 +306,7 @@ func (h *AuthHandler) clearTokenCookies(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
-		Path:     "/auth/refresh",
+		Path:     "/auth",
 		HttpOnly: true,
 		Secure:   h.secure,
 		SameSite: http.SameSiteStrictMode,

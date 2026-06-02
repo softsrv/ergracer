@@ -38,20 +38,33 @@ func (q *Queries) DeleteStaleVerificationCodes(ctx context.Context) (int64, erro
 	return result.RowsAffected(), nil
 }
 
-const getLatestUnusedVerificationCode = `-- name: GetLatestUnusedVerificationCode :one
-SELECT id, user_id, code, expires_at, created_at, used_at FROM email_verification_codes
-WHERE user_id = $1 AND used_at IS NULL AND expires_at > NOW()
-ORDER BY created_at DESC
+const getOldestRecentVerificationCode = `-- name: GetOldestRecentVerificationCode :one
+SELECT created_at FROM email_verification_codes
+WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'
+ORDER BY created_at ASC
 LIMIT 1
 `
 
-func (q *Queries) GetLatestUnusedVerificationCode(ctx context.Context, userID uuid.UUID) (EmailVerificationCode, error) {
-	row := q.db.QueryRow(ctx, getLatestUnusedVerificationCode, userID)
+func (q *Queries) GetOldestRecentVerificationCode(ctx context.Context, userID uuid.UUID) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, getOldestRecentVerificationCode, userID)
+	var created_at pgtype.Timestamptz
+	err := row.Scan(&created_at)
+	return created_at, err
+}
+
+const getVerificationCodeByTokenHash = `-- name: GetVerificationCodeByTokenHash :one
+SELECT id, user_id, token_hash, expires_at, created_at, used_at FROM email_verification_codes
+WHERE token_hash = $1
+LIMIT 1
+`
+
+func (q *Queries) GetVerificationCodeByTokenHash(ctx context.Context, tokenHash string) (EmailVerificationCode, error) {
+	row := q.db.QueryRow(ctx, getVerificationCodeByTokenHash, tokenHash)
 	var i EmailVerificationCode
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.Code,
+		&i.TokenHash,
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UsedAt,
@@ -60,15 +73,15 @@ func (q *Queries) GetLatestUnusedVerificationCode(ctx context.Context, userID uu
 }
 
 const insertEmailVerificationCode = `-- name: InsertEmailVerificationCode :one
-INSERT INTO email_verification_codes (id, user_id, code, expires_at, created_at)
+INSERT INTO email_verification_codes (id, user_id, token_hash, expires_at, created_at)
 VALUES ($1, $2, $3, $4, NOW())
-RETURNING id, user_id, code, expires_at, created_at, used_at
+RETURNING id, user_id, token_hash, expires_at, created_at, used_at
 `
 
 type InsertEmailVerificationCodeParams struct {
 	ID        uuid.UUID          `json:"id"`
 	UserID    uuid.UUID          `json:"user_id"`
-	Code      string             `json:"code"`
+	TokenHash string             `json:"token_hash"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
@@ -76,14 +89,14 @@ func (q *Queries) InsertEmailVerificationCode(ctx context.Context, arg InsertEma
 	row := q.db.QueryRow(ctx, insertEmailVerificationCode,
 		arg.ID,
 		arg.UserID,
-		arg.Code,
+		arg.TokenHash,
 		arg.ExpiresAt,
 	)
 	var i EmailVerificationCode
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.Code,
+		&i.TokenHash,
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UsedAt,

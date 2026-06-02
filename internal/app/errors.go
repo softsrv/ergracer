@@ -1,6 +1,10 @@
 package app
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"time"
+)
 
 var (
 	ErrInvalidCredentials   = errors.New("invalid email or password")
@@ -12,6 +16,15 @@ var (
 	ErrTokenInvalid         = errors.New("token is invalid")
 	ErrTokenUsed            = errors.New("token has already been used")
 	ErrEmailAlreadyVerified = errors.New("email is already verified")
-	ErrRateLimited          = errors.New("too many requests, please try again later")
 	ErrForbidden            = errors.New("access denied")
 )
+
+// RateLimitedError is returned when an operation is attempted too frequently.
+// RetryAt is the earliest time the caller may try again.
+type RateLimitedError struct {
+	RetryAt time.Time
+}
+
+func (e RateLimitedError) Error() string {
+	return fmt.Sprintf("rate limited: retry after %s", e.RetryAt.Format(time.RFC3339))
+}

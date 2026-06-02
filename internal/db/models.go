@@ -14,7 +14,7 @@ import (
 type EmailVerificationCode struct {
 	ID        uuid.UUID          `json:"id"`
 	UserID    uuid.UUID          `json:"user_id"`
-	Code      string             `json:"code"`
+	TokenHash string             `json:"token_hash"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
@@ -30,18 +30,16 @@ type PasswordResetToken struct {
 }
 
 type RefreshToken struct {
-	ID              uuid.UUID          `json:"id"`
-	UserID          uuid.UUID          `json:"user_id"`
-	TokenHash       string             `json:"token_hash"`
-	TokenFamily     uuid.UUID          `json:"token_family"`
-	PreviousTokenID pgtype.UUID        `json:"previous_token_id"`
-	DeviceName      pgtype.Text        `json:"device_name"`
-	IpAddress       *netip.Addr        `json:"ip_address"`
-	UserAgent       pgtype.Text        `json:"user_agent"`
-	ExpiresAt       pgtype.Timestamptz `json:"expires_at"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	LastUsedAt      pgtype.Timestamptz `json:"last_used_at"`
-	RevokedAt       pgtype.Timestamptz `json:"revoked_at"`
+	ID         uuid.UUID          `json:"id"`
+	UserID     uuid.UUID          `json:"user_id"`
+	TokenHash  string             `json:"token_hash"`
+	DeviceName pgtype.Text        `json:"device_name"`
+	IpAddress  *netip.Addr        `json:"ip_address"`
+	UserAgent  pgtype.Text        `json:"user_agent"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
 }
 
 type User struct {

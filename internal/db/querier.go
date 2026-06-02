@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -17,12 +18,13 @@ type Querier interface {
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	DeleteStalePasswordResetTokens(ctx context.Context) (int64, error)
 	DeleteStaleVerificationCodes(ctx context.Context) (int64, error)
-	GetLatestUnusedVerificationCode(ctx context.Context, userID uuid.UUID) (EmailVerificationCode, error)
+	GetOldestRecentVerificationCode(ctx context.Context, userID uuid.UUID) (pgtype.Timestamptz, error)
 	GetPasswordResetTokenByHash(ctx context.Context, tokenHash string) (PasswordResetToken, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (RefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetVerificationCodeByTokenHash(ctx context.Context, tokenHash string) (EmailVerificationCode, error)
 	IncrementFailedLoginAttempts(ctx context.Context, id uuid.UUID) error
 	InsertEmailVerificationCode(ctx context.Context, arg InsertEmailVerificationCodeParams) (EmailVerificationCode, error)
 	InsertPasswordResetToken(ctx context.Context, arg InsertPasswordResetTokenParams) (PasswordResetToken, error)
@@ -34,7 +36,6 @@ type Querier interface {
 	ResetLoginAttempts(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
-	RevokeTokenFamily(ctx context.Context, tokenFamily uuid.UUID) error
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error
 	UpdateRefreshTokenLastUsed(ctx context.Context, arg UpdateRefreshTokenLastUsedParams) error

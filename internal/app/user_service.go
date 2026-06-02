@@ -43,19 +43,21 @@ func (s *UserService) ListSessions(ctx context.Context, userID uuid.UUID) ([]db.
 }
 
 // RevokeSession revokes a specific refresh token, enforcing ownership.
-func (s *UserService) RevokeSession(ctx context.Context, userID, tokenID uuid.UUID) error {
+// It returns the revoked token so the caller can determine whether it was the
+// caller's own active session.
+func (s *UserService) RevokeSession(ctx context.Context, userID, tokenID uuid.UUID) (db.RefreshToken, error) {
 	rt, err := s.q.GetRefreshTokenByID(ctx, tokenID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrTokenNotFound
+			return db.RefreshToken{}, ErrTokenNotFound
 		}
-		return fmt.Errorf("get session: %w", err)
+		return db.RefreshToken{}, fmt.Errorf("get session: %w", err)
 	}
 
 	// Authorization check: the token must belong to the requesting user.
 	if rt.UserID != userID {
-		return ErrForbidden
+		return db.RefreshToken{}, ErrForbidden
 	}
 
-	return s.q.RevokeRefreshToken(ctx, tokenID)
+	return rt, s.q.RevokeRefreshToken(ctx, tokenID)
 }

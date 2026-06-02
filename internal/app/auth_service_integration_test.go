@@ -80,7 +80,7 @@ func TestIntegration_LoginFlow(t *testing.T) {
 	}
 }
 
-func TestIntegration_RefreshRotation(t *testing.T) {
+func TestIntegration_Refresh(t *testing.T) {
 	pool := testDB(t)
 	svc := testAuthService(t, pool)
 	ctx := context.Background()
@@ -98,24 +98,31 @@ func TestIntegration_RefreshRotation(t *testing.T) {
 		t.Fatalf("Login: %v", err)
 	}
 
-	// Refresh.
+	// Refresh returns a new access token but the same refresh token.
 	result2, err := svc.Refresh(ctx, result.RefreshToken, app.DeviceMeta{})
 	if err != nil {
 		t.Fatalf("Refresh: %v", err)
 	}
-	if result2.RefreshToken == result.RefreshToken {
-		t.Error("rotated token must differ from original")
+	if result2.RefreshToken != result.RefreshToken {
+		t.Error("refresh token must not change (no rotation)")
+	}
+	if result2.AccessToken == result.AccessToken {
+		t.Error("access token must be newly issued on each refresh")
 	}
 
-	// Reusing the old token (theft detection) should revoke the family.
+	// Token can be refreshed again without error.
+	_, err = svc.Refresh(ctx, result.RefreshToken, app.DeviceMeta{})
+	if err != nil {
+		t.Errorf("second refresh of same token must succeed, got %v", err)
+	}
+
+	// Revoked token must be rejected.
+	if err := svc.Logout(ctx, result.RefreshToken); err != nil {
+		t.Fatalf("Logout: %v", err)
+	}
 	_, err = svc.Refresh(ctx, result.RefreshToken, app.DeviceMeta{})
 	if err != app.ErrTokenRevoked {
-		t.Errorf("expected ErrTokenRevoked on reuse, got %v", err)
-	}
-	// New token should also be invalidated.
-	_, err = svc.Refresh(ctx, result2.RefreshToken, app.DeviceMeta{})
-	if err == nil {
-		t.Error("expected error: entire family should be revoked after theft detection")
+		t.Errorf("expected ErrTokenRevoked after logout, got %v", err)
 	}
 }
 

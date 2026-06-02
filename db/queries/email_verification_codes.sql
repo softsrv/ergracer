@@ -1,12 +1,11 @@
 -- name: InsertEmailVerificationCode :one
-INSERT INTO email_verification_codes (id, user_id, code, expires_at, created_at)
+INSERT INTO email_verification_codes (id, user_id, token_hash, expires_at, created_at)
 VALUES ($1, $2, $3, $4, NOW())
 RETURNING *;
 
--- name: GetLatestUnusedVerificationCode :one
+-- name: GetVerificationCodeByTokenHash :one
 SELECT * FROM email_verification_codes
-WHERE user_id = $1 AND used_at IS NULL AND expires_at > NOW()
-ORDER BY created_at DESC
+WHERE token_hash = $1
 LIMIT 1;
 
 -- name: MarkVerificationCodeUsed :exec
@@ -15,6 +14,12 @@ UPDATE email_verification_codes SET used_at = NOW() WHERE id = $1;
 -- name: CountRecentVerificationCodesByUserID :one
 SELECT COUNT(*) FROM email_verification_codes
 WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour';
+
+-- name: GetOldestRecentVerificationCode :one
+SELECT created_at FROM email_verification_codes
+WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'
+ORDER BY created_at ASC
+LIMIT 1;
 
 -- name: DeleteStaleVerificationCodes :execrows
 DELETE FROM email_verification_codes

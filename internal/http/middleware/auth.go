@@ -78,6 +78,25 @@ func extractToken(r *http.Request) string {
 	return ""
 }
 
+// RequireEmailVerified rejects requests from authenticated users whose email
+// address has not yet been verified, redirecting them to /verify-email.
+// Must be applied after Authenticate (which populates the user context).
+func RequireEmailVerified(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := UserFromContext(r.Context())
+		if !ok || !user.EmailVerified {
+			if r.Header.Get("HX-Request") == "true" {
+				w.Header().Set("HX-Redirect", "/verify-email")
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			http.Redirect(w, r, "/verify-email", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func respondUnauthorized(w http.ResponseWriter, r *http.Request) {
 	// For HTMX requests, redirect via header so the partial swap works.
 	if r.Header.Get("HX-Request") == "true" {

@@ -8,9 +8,11 @@ import (
 	"github.com/softsrv/starter/internal/db"
 )
 
-// RunTokenCleanup runs the token maintenance job daily at 03:00.
-// It blocks until ctx is cancelled.
+// RunTokenCleanup runs the token maintenance job at startup and then daily at
+// 03:00. It blocks until ctx is cancelled.
 func RunTokenCleanup(ctx context.Context, q *db.Queries) {
+	CleanupTokens(context.Background(), q)
+
 	for {
 		now := time.Now()
 		next := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, now.Location())
@@ -24,8 +26,6 @@ func RunTokenCleanup(ctx context.Context, q *db.Queries) {
 		case <-time.After(time.Until(next)):
 		}
 
-		// Use a fresh Background context so the queries complete even if the
-		// shutdown context fires mid-run.
 		CleanupTokens(context.Background(), q)
 	}
 }
