@@ -20,6 +20,7 @@ import (
 	"github.com/softsrv/starter/internal/email"
 	internalhttp "github.com/softsrv/starter/internal/http"
 	"github.com/softsrv/starter/internal/http/handlers"
+	"github.com/softsrv/starter/web"
 )
 
 func main() {
@@ -29,13 +30,19 @@ func main() {
 	slog.Info("starting", "env", cfg.AppEnv, "port", cfg.Port)
 
 	// ── Database ──────────────────────────────────────────────────────────────
+	if cfg.DBMinConns > cfg.DBMaxConns {
+		slog.Error("DB_MIN_CONNS must not exceed DB_MAX_CONNS",
+			"min", cfg.DBMinConns, "max", cfg.DBMaxConns)
+		os.Exit(1)
+	}
+
 	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		slog.Error("parse database url", "error", err)
 		os.Exit(1)
 	}
 	poolCfg.MaxConns = int32(cfg.DBMaxConns)
-	poolCfg.MinConns = 5
+	poolCfg.MinConns = int32(cfg.DBMinConns)
 	poolCfg.MaxConnLifetime = time.Hour
 	poolCfg.MaxConnIdleTime = 10 * time.Minute
 	poolCfg.HealthCheckPeriod = time.Minute
@@ -72,16 +79,16 @@ func main() {
 	// Page templates are NOT loaded here — the TemplateRenderer clones this
 	// base and parses the page-specific file per-request, preventing the
 	// {{define "content"}} global-overwrite gotcha in Go's template engine.
-	baseTmpl, err := template.ParseFiles("web/templates/base.html")
+	baseTmpl, err := template.ParseFS(web.FS, "templates/base.html")
 	if err != nil {
 		slog.Error("parse base template", "error", err)
 		os.Exit(1)
 	}
-	if _, parseErr := baseTmpl.ParseGlob("web/templates/partials/*.html"); parseErr != nil {
+	if _, parseErr := baseTmpl.ParseFS(web.FS, "templates/partials/*.html"); parseErr != nil {
 		slog.Warn("parse partial templates", "error", parseErr)
 	}
 
-	renderer := handlers.NewTemplateRenderer(baseTmpl, "web/templates")
+	renderer := handlers.NewTemplateRenderer(baseTmpl, web.FS, "templates")
 
 	// ── Background context (token cleanup + rate-limiter sweepers) ────────────
 	// cleanupCtx is cancelled after the HTTP server drains, giving background
@@ -90,13 +97,15 @@ func main() {
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	handler := internalhttp.NewRouter(cleanupCtx, internalhttp.RouterConfig{
-		Queries:   queries,
-		Pool:      pool,
-		AuthSvc:   authSvc,
-		UserSvc:   userSvc,
-		Renderer:  renderer,
-		JWTSecret: cfg.JWTSecret,
-		Secure:    cfg.AppEnv == "production",
+		Queries:           queries,
+		Pool:              pool,
+		AuthSvc:           authSvc,
+		UserSvc:           userSvc,
+		Renderer:          renderer,
+		JWTSecret:         cfg.JWTSecret,
+		Secure:            cfg.AppEnv == "production",
+		TrustedProxyCount: cfg.TrustedProxyCount,
+		MetricsToken:      cfg.MetricsToken,
 	})
 
 	srv := &http.Server{
@@ -151,6 +160,9 @@ type config struct {
 	AppBaseURL         string
 	DatabaseURL        string
 	DBMaxConns         int
+	DBMinConns         int
+	TrustedProxyCount  int
+	MetricsToken       string
 	JWTSecret          string
 	JWTAccessExpiry    time.Duration
 	RefreshTokenExpiry time.Duration
@@ -189,6 +201,18 @@ func mustLoadConfig() config {
 	if err != nil {
 		cfg.DBMaxConns = 25
 	}
+
+	cfg.DBMinConns, err = strconv.Atoi(getEnvOrDefault("DB_MIN_CONNS", "5"))
+	if err != nil {
+		cfg.DBMinConns = 5
+	}
+
+	cfg.TrustedProxyCount, err = strconv.Atoi(getEnvOrDefault("TRUSTED_PROXY_COUNT", "0"))
+	if err != nil {
+		cfg.TrustedProxyCount = 0
+	}
+
+	cfg.MetricsToken = os.Getenv("METRICS_TOKEN")
 
 	cfg.JWTAccessExpiry, err = time.ParseDuration(getEnvOrDefault("JWT_ACCESS_EXPIRY", "15m"))
 	if err != nil {

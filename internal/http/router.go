@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -9,17 +10,20 @@ import (
 	"github.com/softsrv/starter/internal/db"
 	"github.com/softsrv/starter/internal/http/handlers"
 	"github.com/softsrv/starter/internal/http/middleware"
+	"github.com/softsrv/starter/web"
 )
 
 // RouterConfig holds all dependencies required to build the router.
 type RouterConfig struct {
-	Queries   *db.Queries
-	Pool      handlers.DBPinger
-	AuthSvc   *app.AuthService
-	UserSvc   *app.UserService
-	Renderer  *handlers.TemplateRenderer
-	JWTSecret string
-	Secure    bool // true in production
+	Queries            *db.Queries
+	Pool               handlers.DBPinger
+	AuthSvc            *app.AuthService
+	UserSvc            *app.UserService
+	Renderer           *handlers.TemplateRenderer
+	JWTSecret          string
+	Secure             bool // true in production
+	TrustedProxyCount  int
+	MetricsToken       string
 }
 
 // NewRouter builds and returns the main http.Handler with all routes and middleware.
@@ -34,24 +38,30 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 
 	// ── Rate limiters ─────────────────────────────────────────────────────────
 	// Each limiter spawns a sweep goroutine that exits when ctx is cancelled.
-	loginRL    := middleware.NewRateLimiter(ctx, 5,  15*time.Minute, middleware.IPKeyFunc)
-	registerRL := middleware.NewRateLimiter(ctx, 3,  time.Hour,      middleware.IPKeyFunc)
+	ipKey      := middleware.IPKeyFunc(cfg.TrustedProxyCount)
+	loginRL    := middleware.NewRateLimiter(ctx, 5,  15*time.Minute, ipKey)
+	registerRL := middleware.NewRateLimiter(ctx, 3,  time.Hour,      ipKey)
 	refreshRL  := middleware.NewRateLimiter(ctx, 10, time.Minute,    middleware.CookieRefreshTokenKeyFunc)
 	forgotRL   := middleware.NewRateLimiter(ctx, 3,  time.Hour,      middleware.FormEmailKeyFunc)
-	resetRL    := middleware.NewRateLimiter(ctx, 5,  time.Hour,      middleware.IPKeyFunc)
+	resetRL    := middleware.NewRateLimiter(ctx, 5,  time.Hour,      ipKey)
 
 	authMW := middleware.Authenticate(cfg.Queries, cfg.JWTSecret)
 	verifiedMW := func(h http.Handler) http.Handler { return authMW(middleware.RequireEmailVerified(h)) }
 
 	// ── Static assets ─────────────────────────────────────────────────────────
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	staticFS, _ := fs.Sub(web.FS, "static")
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 
 	// ── Public routes ─────────────────────────────────────────────────────────
 	mux.HandleFunc("GET /health",  handlers.HandleLiveness)
 	mux.HandleFunc("GET /ready",   handlers.HandleReadiness(cfg.Pool))
-	mux.HandleFunc("GET /metrics", handlers.HandleMetrics)
+	mux.Handle("GET /metrics", handlers.HandleMetrics(cfg.MetricsToken))
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if cookie, err := r.Cookie("access_token"); err == nil && cookie.Value != "" {
+			http.Redirect(w, r, "/dashboard", http.StatusFound)
+			return
+		}
 		http.Redirect(w, r, "/login", http.StatusFound)
 	})
 	mux.HandleFunc("GET /login",           authH.LoginPage)
@@ -84,6 +94,8 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 
 	// ── Global middleware chain ───────────────────────────────────────────────
 	return middleware.RequestID(
-		middleware.Logging(mux),
+		middleware.Logging(
+			middleware.SecurityHeaders(cfg.Secure, mux),
+		),
 	)
 }

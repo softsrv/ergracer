@@ -35,6 +35,8 @@ func IssueAccessToken(userID uuid.UUID, email, secret string, expiry time.Durati
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID.String(),
+			Issuer:    "starter",
+			Audience:  jwt.ClaimStrings{"starter"},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(exp),
 		},
@@ -56,7 +58,7 @@ func ValidateAccessToken(tokenStr, secret string) (*Claims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(secret), nil
-	})
+	}, jwt.WithIssuer("starter"), jwt.WithAudience("starter"))
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {

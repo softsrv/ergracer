@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -96,14 +96,22 @@ func (rl *RateLimiter) sweep(ctx context.Context) {
 	}
 }
 
-// IPKeyFunc extracts the client IP for rate limiting.
-// When an X-Forwarded-For header is present (reverse-proxy deployments), it takes
-// only the first (leftmost) IP to avoid spoofing via appended values.
-func IPKeyFunc(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		return "ip:" + firstForwardedIP(fwd)
+// IPKeyFunc returns a rate-limit key for the client IP.
+// trustedProxies is the number of trusted reverse-proxy hops; set to 0 if
+// this service is exposed directly to the internet.
+func IPKeyFunc(trustedProxies int) func(*http.Request) string {
+	return func(r *http.Request) string {
+		if trustedProxies > 0 {
+			if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+				return "ip:" + firstForwardedIP(fwd)
+			}
+		}
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			return "ip:" + r.RemoteAddr
+		}
+		return "ip:" + host
 	}
-	return fmt.Sprintf("ip:%s", r.RemoteAddr)
 }
 
 // FormEmailKeyFunc extracts the email field from the form body.
@@ -117,7 +125,12 @@ func CookieRefreshTokenKeyFunc(r *http.Request) string {
 	if c, err := r.Cookie("refresh_token"); err == nil {
 		return "rt:" + c.Value[:min(len(c.Value), 16)] // use prefix only
 	}
-	return IPKeyFunc(r) // fallback to IP
+	// fallback: use RemoteAddr directly (no proxy trust needed for cookie-keyed limiter)
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return "ip:" + r.RemoteAddr
+	}
+	return "ip:" + host
 }
 
 // firstForwardedIP returns the leftmost (client) IP from an X-Forwarded-For value,

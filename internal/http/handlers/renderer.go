@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
 )
@@ -13,14 +14,15 @@ import (
 // shared template set overwrite each other globally.
 type TemplateRenderer struct {
 	base    *template.Template
-	pageDir string // e.g. "web/templates"
+	fsys    fs.FS
+	pageDir string // root path within fsys, e.g. "templates"
 }
 
 // NewTemplateRenderer constructs a renderer from a base template.
 // base should already contain base.html and all partials.
-// pageDir is the root directory for page templates.
-func NewTemplateRenderer(base *template.Template, pageDir string) *TemplateRenderer {
-	return &TemplateRenderer{base: base, pageDir: pageDir}
+// fsys is the filesystem to load page templates from; pageDir is the root path within it.
+func NewTemplateRenderer(base *template.Template, fsys fs.FS, pageDir string) *TemplateRenderer {
+	return &TemplateRenderer{base: base, fsys: fsys, pageDir: pageDir}
 }
 
 // Page clones the base template, parses the given page file into the clone, and
@@ -33,7 +35,7 @@ func (r *TemplateRenderer) Page(w http.ResponseWriter, status int, pagePath stri
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	if _, err = t.ParseFiles(fmt.Sprintf("%s/%s", r.pageDir, pagePath)); err != nil {
+	if _, err = t.ParseFS(r.fsys, fmt.Sprintf("%s/%s", r.pageDir, pagePath)); err != nil {
 		slog.Error("parse page template", "page", pagePath, "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

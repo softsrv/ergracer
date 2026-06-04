@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/softsrv/starter/internal/app"
 	"github.com/softsrv/starter/internal/auth"
 	"github.com/softsrv/starter/internal/db"
 	"github.com/softsrv/starter/internal/http/middleware"
@@ -73,6 +74,10 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 
 	revoked, err := h.users.RevokeSession(r.Context(), user.ID, tokenID)
 	if err != nil {
+		if errors.Is(err, app.ErrForbidden) || errors.Is(err, app.ErrTokenNotFound) {
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
 		slog.ErrorContext(r.Context(), "revoke session", "user_id", user.ID, "token_id", tokenID, "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -82,7 +87,7 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	// force a login. The JWT is still technically valid until it expires, but
 	// this prevents the browser from continuing to use a revoked session.
 	if cookie, cookieErr := r.Cookie("refresh_token"); cookieErr == nil {
-		if auth.HashToken(cookie.Value) == revoked.TokenHash {
+		if auth.CompareTokenHash(cookie.Value, revoked.TokenHash) {
 			clearAuthCookies(w, h.secure)
 			w.Header().Set("HX-Redirect", "/login")
 			w.WriteHeader(http.StatusOK)
@@ -101,26 +106,3 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func clearAuthCookies(w http.ResponseWriter, secure bool) {
-	epoch := time.Unix(0, 0)
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  epoch,
-		MaxAge:   -1,
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/auth",
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  epoch,
-		MaxAge:   -1,
-	})
-}

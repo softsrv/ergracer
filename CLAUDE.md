@@ -79,7 +79,7 @@ Middleware (internal/http/middleware/)  ← auth, rate limiting, CSRF, logging, 
 ### Middleware chain (outermost → innermost)
 
 ```
-RequestID → Logging → CSRF → mux
+RequestID → Logging → SecurityHeaders → mux
 ```
 
 Auth middleware (`middleware.Authenticate`) is applied per-route, not globally.

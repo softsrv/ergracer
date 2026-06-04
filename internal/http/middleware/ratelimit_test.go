@@ -19,7 +19,7 @@ func TestRateLimiter(t *testing.T) {
 
 	t.Run("allows requests within limit", func(t *testing.T) {
 		t.Parallel()
-		rl := middleware.NewRateLimiter(context.Background(), 3, time.Minute, middleware.IPKeyFunc)
+		rl := middleware.NewRateLimiter(context.Background(), 3, time.Minute, middleware.IPKeyFunc(0))
 		handler := rl.Middleware(alwaysOK)
 
 		for i := 0; i < 3; i++ {
@@ -35,7 +35,7 @@ func TestRateLimiter(t *testing.T) {
 
 	t.Run("blocks requests over limit", func(t *testing.T) {
 		t.Parallel()
-		rl := middleware.NewRateLimiter(context.Background(), 2, time.Minute, middleware.IPKeyFunc)
+		rl := middleware.NewRateLimiter(context.Background(), 2, time.Minute, middleware.IPKeyFunc(0))
 		handler := rl.Middleware(alwaysOK)
 
 		for i := 0; i < 2; i++ {
@@ -61,7 +61,7 @@ func TestRateLimiter(t *testing.T) {
 
 	t.Run("different IPs are tracked separately", func(t *testing.T) {
 		t.Parallel()
-		rl := middleware.NewRateLimiter(context.Background(), 1, time.Minute, middleware.IPKeyFunc)
+		rl := middleware.NewRateLimiter(context.Background(), 1, time.Minute, middleware.IPKeyFunc(0))
 		handler := rl.Middleware(alwaysOK)
 
 		for _, ip := range []string{"10.0.0.1:1", "10.0.0.2:1", "10.0.0.3:1"} {
@@ -79,7 +79,7 @@ func TestRateLimiter(t *testing.T) {
 		t.Parallel()
 		ctx, cancel := context.WithCancel(context.Background())
 		// Just verify NewRateLimiter returns without blocking and cancel is honoured.
-		_ = middleware.NewRateLimiter(ctx, 5, time.Minute, middleware.IPKeyFunc)
+		_ = middleware.NewRateLimiter(ctx, 5, time.Minute, middleware.IPKeyFunc(0))
 		cancel() // sweep goroutine should exit on its next tick
 	})
 }

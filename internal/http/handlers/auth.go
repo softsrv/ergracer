@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/mssola/useragent"
 
 	"github.com/softsrv/starter/internal/app"
 	"github.com/softsrv/starter/internal/db"
@@ -145,7 +146,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 			slog.WarnContext(r.Context(), "logout: revoke refresh token", "error", logoutErr)
 		}
 	}
-	h.clearTokenCookies(w)
+	clearAuthCookies(w, h.secure)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -160,7 +161,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	result, err := h.auth.Refresh(r.Context(), cookie.Value, meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "token refresh failed", "error", err)
-		h.clearTokenCookies(w)
+		clearAuthCookies(w, h.secure)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -273,7 +274,7 @@ func (h *AuthHandler) setTokenCookies(w http.ResponseWriter, result app.TokenRes
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   h.secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Expires:  result.AccessTokenExpiry,
 	})
 	http.SetCookie(w, &http.Cookie{
@@ -282,36 +283,8 @@ func (h *AuthHandler) setTokenCookies(w http.ResponseWriter, result app.TokenRes
 		Path:     "/auth",
 		HttpOnly: true,
 		Secure:   h.secure,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		Expires:  result.RefreshTokenExpiry,
-	})
-}
-
-func (h *AuthHandler) clearTokenCookies(w http.ResponseWriter) {
-	epoch := time.Unix(0, 0)
-	// access_token was set on Path "/".
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.secure,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  epoch,
-		MaxAge:   -1,
-	})
-	// refresh_token was set on the narrower Path "/auth/refresh"; clearing must
-	// use that same path, otherwise the browser treats them as different cookies
-	// and the session cookie is never actually removed.
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/auth",
-		HttpOnly: true,
-		Secure:   h.secure,
-		SameSite: http.SameSiteStrictMode,
-		Expires:  epoch,
-		MaxAge:   -1,
 	})
 }
 
@@ -355,8 +328,16 @@ func deviceMeta(r *http.Request) app.DeviceMeta {
 		addr = &parsed
 	}
 
+	ua := useragent.New(r.UserAgent())
+	browser, _ := ua.Browser()
+	os := ua.OS()
+	deviceName := browser
+	if os != "" && browser != "" {
+		deviceName = browser + " on " + os
+	}
+
 	return app.DeviceMeta{
-		DeviceName: "", // could parse UA for friendly name
+		DeviceName: deviceName,
 		IPAddress:  addr,
 		UserAgent:  r.UserAgent(),
 	}
