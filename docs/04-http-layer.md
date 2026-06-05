@@ -20,13 +20,16 @@ Request
 [StructuredLogging] — log method, path, status, latency, request ID at INFO
   │
   ▼
-[CSRF]             — generate CSRF token cookie on GET; validate on POST/PUT/PATCH/DELETE
+[SecurityHeaders]  — security headers / CSP
   │
   ▼
-[RateLimit]        — per-endpoint limits (see auth doc); return 429 + Retry-After on breach
+[BodyLimit]        — cap request body at 1 MiB via http.MaxBytesReader
   │
   ▼
 [Router]           — dispatch to handler
+  │
+  ▼
+[RateLimit] (route-specific) — per-endpoint limits (see auth doc); 429 + Retry-After on breach
   │
   ▼
 [Auth] (route-specific) — validate JWT; attach user to context; 401 on failure
@@ -35,7 +38,7 @@ Request
 Handler
 ```
 
-`Auth` middleware is applied per-route (not globally) so public routes (login, register, health) are never blocked by missing tokens.
+There is no global CSRF middleware — CSRF is mitigated by `SameSite=Lax` cookies plus same-origin posts. `RateLimit` and `Auth` are applied per-route (not globally): rate limits wrap only the specific auth endpoints, and auth wraps only protected routes so public routes (login, register, health) are never blocked by missing tokens.
 
 ---
 
@@ -52,13 +55,12 @@ Public routes (no auth middleware):
   POST /auth/forgot-password      → request reset email (rate limited)
   GET  /reset-password            → render reset-password form (token in query param)
   POST /auth/reset-password       → complete password reset (rate limited)
-  GET  /verify-email              → render verification code form
-  POST /auth/verify-email         → submit verification code
-  POST /auth/refresh              → issue new access + refresh token (rate limited)
+  GET  /verify-email              → render "check your email" / verification status page
+  GET  /auth/verify-email         → consume verification link token; auto-login; redirect
+  POST /auth/refresh              → issue new access token, reuse refresh token (rate limited)
 
   GET  /health                    → liveness check (always 200)
   GET  /ready                     → readiness check (200 if DB reachable, else 503)
-  GET  /metrics                   → placeholder; 200 OK
 
   GET  /static/...                → serve embedded static assets (CSS, JS)
 
@@ -84,7 +86,7 @@ Handlers are intentionally thin. Each handler:
 **What handlers must not do:**
 - Contain business logic
 - Call the database directly
-- Make decisions about password policy, token rotation, lockout thresholds
+- Make decisions about password policy, token lifetimes, lockout thresholds
 
 ### `handlers/auth.go`
 
@@ -95,13 +97,16 @@ Handlers are intentionally thin. Each handler:
 | `HandleRegisterPage` | GET | `/register` | Render registration form |
 | `HandleRegister` | POST | `/auth/register` | Call `AuthService.Register`; send verification email |
 | `HandleLogout` | POST | `/auth/logout` | Call `AuthService.Logout`; clear cookies |
-| `HandleRefresh` | POST | `/auth/refresh` | Call `AuthService.Refresh`; rotate tokens |
+| `HandleRefresh` | POST | `/auth/refresh` | Call `AuthService.Refresh`; new access token, same refresh token |
 | `HandleForgotPasswordPage` | GET | `/forgot-password` | Render forgot-password form |
 | `HandleForgotPassword` | POST | `/auth/forgot-password` | Call `AuthService.RequestPasswordReset` |
 | `HandleResetPasswordPage` | GET | `/reset-password` | Render reset form with token from query |
 | `HandleResetPassword` | POST | `/auth/reset-password` | Call `AuthService.CompletePasswordReset` |
-| `HandleVerifyEmailPage` | GET | `/verify-email` | Render verification code form |
-| `HandleVerifyEmail` | POST | `/auth/verify-email` | Call `AuthService.VerifyEmail` |
+| `HandleVerifyEmailPage` | GET | `/verify-email` | Render "check your email" / status page |
+| `HandleVerifyEmail` | GET | `/auth/verify-email` | Consume link token via `AuthService.VerifyEmail`; auto-login |
+| `HandleResendVerification` | POST | `/auth/resend-verification` | Call `AuthService.ResendVerification` (authenticated) |
+
+> Handler methods are named without the `Handle` prefix in code (e.g. `Login`, `Refresh`, `VerifyEmail` on `*AuthHandler`); the table uses the descriptive form.
 
 ### `handlers/sessions.go`
 
@@ -116,7 +121,6 @@ Handlers are intentionally thin. Each handler:
 |---|---|---|---|
 | `HandleLiveness` | GET | `/health` | Always 200 OK |
 | `HandleReadiness` | GET | `/ready` | 200 if DB ping succeeds; 503 otherwise |
-| `HandleMetrics` | GET | `/metrics` | Placeholder; 200 OK |
 
 ---
 
@@ -128,13 +132,13 @@ The service layer sits between handlers and the DB. It owns all business logic.
 
 ```
 AuthService
-  ├── Login(ctx, email, password, deviceMeta) → (AccessToken, RefreshToken, error)
+  ├── Login(ctx, email, password, deviceMeta) → (TokenResult, error)
   ├── Register(ctx, email, password) → (User, error)
   ├── Logout(ctx, rawRefreshToken) → error
-  ├── Refresh(ctx, rawRefreshToken, deviceMeta) → (AccessToken, RefreshToken, error)
+  ├── Refresh(ctx, rawRefreshToken, deviceMeta) → (TokenResult, error)  // same refresh token reused
   ├── RequestPasswordReset(ctx, email) → error
   ├── CompletePasswordReset(ctx, rawToken, newPassword) → error
-  ├── VerifyEmail(ctx, userID, code) → error
+  ├── VerifyEmail(ctx, rawToken, deviceMeta) → (TokenResult, error)     // link token; auto-login
   └── ResendVerification(ctx, userID) → error
 ```
 
@@ -173,7 +177,6 @@ The app is server-rendered first. HTMX is used for partial swaps and form submis
 | Auth failure (no token) | 401 | `HX-Redirect: /login` |
 | Rate limited | 429 | `Retry-After` header + error fragment |
 | Server error | 500 | Error fragment or `HX-Reswap: innerHTML` |
-| CSRF failure | 403 | Plain 403; form re-renders with error |
 
 ### Token Expiry Handling (Client-Side)
 
@@ -202,17 +205,17 @@ All templates use Go's `html/template`. Auto-escaping is always active. Template
 ```
 web/templates/
   base.html                   — root layout: <html>, nav, theme switcher, script tags
+  dashboard.html              — authenticated landing view
   auth/
-    login.html                — login form (email + password + CSRF)
+    login.html                — login form (email + password)
     register.html             — registration form
     forgot-password.html      — forgot-password form
     reset-password.html       — reset form + token hidden field
-    verify-email.html         — 6-digit code input
+    verify-email.html         — "check your email" / verification status page
   partials/
     error.html                — inline error message fragment (for HTMX swaps)
     flash.html                — success/info flash message fragment
-    session-row.html          — single session row for session table
-    session-list.html         — full session list (for initial load)
+    session-list.html         — full session list (for initial load + HTMX swaps)
 ```
 
 ### Template Data Convention
@@ -222,9 +225,8 @@ Each handler passes a typed struct to the template renderer, never a `map[string
 Example:
 ```go
 type LoginPageData struct {
-    CSRFToken string
-    Error     string
-    Email     string // re-populate on validation failure
+    Error string
+    Email string // re-populate on validation failure
 }
 ```
 

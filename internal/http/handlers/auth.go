@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/netip"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,14 +34,20 @@ type authServicer interface {
 
 // AuthHandler groups all authentication HTTP handlers.
 type AuthHandler struct {
-	auth     authServicer
-	renderer *TemplateRenderer
-	secure   bool // true in production (Secure cookie flag)
+	auth              authServicer
+	renderer          *TemplateRenderer
+	secure            bool // true in production (Secure cookie flag)
+	trustedProxyCount int  // number of trusted reverse-proxy hops for client-IP extraction
 }
 
 // NewAuthHandler constructs an AuthHandler.
-func NewAuthHandler(authSvc authServicer, renderer *TemplateRenderer, secure bool) *AuthHandler {
-	return &AuthHandler{auth: authSvc, renderer: renderer, secure: secure}
+func NewAuthHandler(authSvc authServicer, renderer *TemplateRenderer, secure bool, trustedProxyCount int) *AuthHandler {
+	return &AuthHandler{
+		auth:              authSvc,
+		renderer:          renderer,
+		secure:            secure,
+		trustedProxyCount: trustedProxyCount,
+	}
 }
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
@@ -99,7 +103,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Issue tokens immediately after registration so the user is authenticated
 	// when they reach /verify-email. POST /auth/verify-email is protected by
 	// authMW and will reject unauthenticated requests.
-	meta := deviceMeta(r)
+	meta := h.deviceMeta(r)
 	result, err := h.auth.Login(r.Context(), email, password, meta)
 	if err != nil {
 		// Registration succeeded — log the auto-login failure and redirect anyway.
@@ -120,7 +124,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meta := deviceMeta(r)
+	meta := h.deviceMeta(r)
 	result, err := h.auth.Login(r.Context(), r.FormValue("email"), r.FormValue("password"), meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "login failed", "error", err)
@@ -157,7 +161,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meta := deviceMeta(r)
+	meta := h.deviceMeta(r)
 	result, err := h.auth.Refresh(r.Context(), cookie.Value, meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "token refresh failed", "error", err)
@@ -220,7 +224,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meta := deviceMeta(r)
+	meta := h.deviceMeta(r)
 	result, err := h.auth.VerifyEmail(r.Context(), token, meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "verify email failed", "error", err)
@@ -304,27 +308,13 @@ func htmxRedirect(w http.ResponseWriter, path string) {
 }
 
 // deviceMeta extracts client IP and user-agent metadata from the request.
-// When an X-Forwarded-For header is present it uses only the leftmost IP to
-// avoid accepting spoofed values appended by the client.
-func deviceMeta(r *http.Request) app.DeviceMeta {
+// Client-IP extraction goes through middleware.ClientIP, which only trusts
+// X-Forwarded-For when the service is configured behind trusted proxies — so
+// the stored IP can't be spoofed in a direct-to-internet deployment.
+func (h *AuthHandler) deviceMeta(r *http.Request) app.DeviceMeta {
 	var addr *netip.Addr
 
-	var ipStr string
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		// X-Forwarded-For may be "client, proxy1, proxy2" — take the leftmost.
-		first, _, _ := strings.Cut(fwd, ",")
-		ipStr = strings.TrimSpace(first)
-	} else {
-		// RemoteAddr is "host:port"; strip the port.
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err == nil {
-			ipStr = host
-		} else {
-			ipStr = r.RemoteAddr
-		}
-	}
-
-	if parsed, err := netip.ParseAddr(ipStr); err == nil {
+	if parsed, err := netip.ParseAddr(middleware.ClientIP(r, h.trustedProxyCount)); err == nil {
 		addr = &parsed
 	}
 

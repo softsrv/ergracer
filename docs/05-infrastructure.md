@@ -136,7 +136,6 @@ request_id, method, path, status, latency_ms, remote_addr, user_agent
 |---|---|---|
 | `GET /health` | Liveness — is the process alive? | Always `200 OK` + `{"status":"ok"}` |
 | `GET /ready` | Readiness — can it serve traffic? | `200 OK` if `pgxpool.Ping()` succeeds; `503` otherwise |
-| `GET /metrics` | Future Prometheus integration point | `200 OK` placeholder |
 
 The `/ready` endpoint is used by Kubernetes/Docker health checks to gate traffic. The process can be live (healthy) but not ready (DB unreachable) — these are intentionally separate.
 
@@ -157,10 +156,12 @@ Unit tests live alongside the code they test (e.g., `internal/auth/jwt_test.go`)
 | Area | Test file | Coverage target |
 |---|---|---|
 | JWT issue + validation | `internal/auth/jwt_test.go` | ≥80% |
-| CSRF token generate + validate | `internal/auth/csrf_test.go` | ≥80% |
+| Token generation + hashing | `internal/auth/tokens_test.go` | ≥80% |
 | Password validation | `internal/users/validate_test.go` | ≥80% |
 | Auth middleware (mock DB) | `internal/http/middleware/auth_test.go` | ≥70% |
+| Body-size limit | `internal/http/middleware/bodylimit_test.go` | ≥70% |
 | Rate limiter logic | `internal/http/middleware/ratelimit_test.go` | ≥70% |
+| Auth + session handlers | `internal/http/handlers/auth_test.go`, `sessions_test.go` | ≥70% |
 
 ### Integration Tests
 
@@ -178,11 +179,10 @@ Integration test files use the `//go:build integration` build tag so `make test`
 | Migration up/down | Verify schema is applied and reversed cleanly |
 | User repository: create, get by email, update | Full round-trip via real DB |
 | Login flow | Correct credentials → tokens issued; wrong password → 401; locked account → 423 |
-| Token refresh with rotation | Old token revoked; new token valid |
-| Token family theft detection | Reused revoked token → entire family revoked |
-| Session revocation | `DELETE /auth/sessions/{id}` removes only the target token |
+| Token refresh | Valid token → new access token, same refresh token; revoked/expired → 401 |
+| Session revocation | `DELETE /auth/sessions/{id}` revokes only the target token; other user's token → 404 |
 | Password reset | Request → email sent (mock SMTP); complete → old sessions revoked |
-| CSRF validation | Missing token → 403; valid token → handler called |
+| Email verification | Link token → email verified + auto-login; expired/used token → rejected |
 | Rate limiting | Exceed limit → 429; wait → 200 again |
 
 ### Test Conventions

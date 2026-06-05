@@ -105,4 +105,3 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		"UserID":   user.ID,
 	})
 }
-

@@ -1,3 +1,16 @@
+// ── Password visibility toggle ────────────────────────────────────────────────
+
+document.addEventListener('click', function(evt) {
+  var btn = evt.target.closest('[data-toggle-pwd]');
+  if (!btn) return;
+  var input = document.getElementById(btn.getAttribute('data-toggle-pwd'));
+  if (!input) return;
+  var show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.querySelector('.eye').classList.toggle('hidden', show);
+  btn.querySelector('.eye-off').classList.toggle('hidden', !show);
+});
+
 // ── Token expiry handling ─────────────────────────────────────────────────────
 
 // When the server fires the token-expired event, attempt a silent refresh.

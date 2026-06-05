@@ -50,15 +50,15 @@ Service layer (internal/app/)          ← business logic + orchestration
     ↓
 DB layer (internal/db/)                ← sqlc-generated, pgx/v5 driver
     ↑
-Middleware (internal/http/middleware/)  ← auth, rate limiting, CSRF, logging, request ID
+Middleware (internal/http/middleware/)  ← auth, rate limiting, security headers, body limit, logging, request ID
 ```
 
 ### Key packages
 
 | Package | Purpose |
 |---|---|
-| `internal/app/` | `AuthService` and `UserService` — all auth flows, token rotation, password reset, email verification |
-| `internal/auth/` | JWT issue/validate, token hashing (SHA-256), CSRF token generation |
+| `internal/app/` | `AuthService` and `UserService` — all auth flows, password reset, email verification |
+| `internal/auth/` | JWT issue/validate, token hashing (SHA-256), refresh/reset/verification token generation |
 | `internal/db/` | sqlc-generated repository code; never edit by hand — regenerate with `make sqlc-generate` |
 | `internal/email/` | `Mailer` interface + `SMTPMailer` impl + `NoopMailer` for tests; email templates |
 | `internal/http/` | Router wiring in `router.go`; handlers and middleware in sub-packages |
@@ -67,8 +67,10 @@ Middleware (internal/http/middleware/)  ← auth, rate limiting, CSRF, logging, 
 ### Auth design
 
 - **Access tokens**: JWT (HS256), 15-minute lifetime, delivered as `access_token` httpOnly cookie and in response body.
-- **Refresh tokens**: 32-byte random, SHA-256 hashed before DB storage, 30-day lifetime, `refresh_token` httpOnly cookie.
-- **Token families**: each login session gets a `token_family` UUID. Rotated tokens share the family. If a revoked token in a family is reused, the entire family is revoked (theft detection).
+- **Refresh tokens**: 32-byte random, SHA-256 hashed before DB storage, 30-day lifetime, `refresh_token` httpOnly cookie. **No rotation** — `Refresh` issues a new access token and reuses the same refresh token, updating `last_used_at` and device metadata in place.
+- **Cookies**: `SameSite=Lax`, httpOnly, `Secure` in production. No CSRF tokens — CSRF is mitigated by SameSite=Lax plus same-origin form posts.
+- **Email verification**: link-based. A 32-byte token (SHA-256 hashed in DB, 24h lifetime) is emailed; the public `GET /auth/verify-email?token=` endpoint marks the email verified and auto-logs the user in.
+- **Login timing**: when the email is unknown, `Login` still runs a bcrypt comparison against a precomputed dummy hash so response latency doesn't reveal which emails are registered.
 - **Account locking**: 10 failed login attempts → `locked_until = NOW() + 1h`.
 - **Token cleanup**: background goroutine fires daily at 03:00; purges expired/revoked tokens per retention policy.
 
@@ -79,10 +81,10 @@ Middleware (internal/http/middleware/)  ← auth, rate limiting, CSRF, logging, 
 ### Middleware chain (outermost → innermost)
 
 ```
-RequestID → Logging → SecurityHeaders → mux
+RequestID → Logging → SecurityHeaders → BodyLimit → mux
 ```
 
-Auth middleware (`middleware.Authenticate`) is applied per-route, not globally.
+`BodyLimit` caps request bodies at 1 MiB (`DefaultMaxBodyBytes`) via `http.MaxBytesReader`. Auth middleware (`middleware.Authenticate`) is applied per-route, not globally.
 
 ### Rate limiting
 
@@ -106,5 +108,5 @@ For local development, `make dev` starts smtp4dev automatically — SMTP is avai
 - `html/template` only (not `text/template`) — auto-escaping prevents XSS.
 - No frontend frameworks; HTMX for dynamics.
 - Parameterized SQL only (sqlc enforces this).
-- bcrypt cost factor 12.
+- bcrypt cost factor 12; passwords capped at 72 bytes (bcrypt's input limit) in `users.ValidatePassword`.
 - UUIDv7 via `github.com/google/uuid`.

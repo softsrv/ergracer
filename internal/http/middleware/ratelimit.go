@@ -3,10 +3,8 @@ package middleware
 import (
 	"context"
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -101,16 +99,7 @@ func (rl *RateLimiter) sweep(ctx context.Context) {
 // this service is exposed directly to the internet.
 func IPKeyFunc(trustedProxies int) func(*http.Request) string {
 	return func(r *http.Request) string {
-		if trustedProxies > 0 {
-			if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-				return "ip:" + firstForwardedIP(fwd)
-			}
-		}
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			return "ip:" + r.RemoteAddr
-		}
-		return "ip:" + host
+		return "ip:" + ClientIP(r, trustedProxies)
 	}
 }
 
@@ -125,17 +114,6 @@ func CookieRefreshTokenKeyFunc(r *http.Request) string {
 	if c, err := r.Cookie("refresh_token"); err == nil {
 		return "rt:" + c.Value[:min(len(c.Value), 16)] // use prefix only
 	}
-	// fallback: use RemoteAddr directly (no proxy trust needed for cookie-keyed limiter)
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return "ip:" + r.RemoteAddr
-	}
-	return "ip:" + host
-}
-
-// firstForwardedIP returns the leftmost (client) IP from an X-Forwarded-For value,
-// which may be a comma-separated list: "client, proxy1, proxy2".
-func firstForwardedIP(xff string) string {
-	first, _, _ := strings.Cut(xff, ",")
-	return strings.TrimSpace(first)
+	// Fallback: key on the direct connection IP (no proxy trust needed here).
+	return "ip:" + ClientIP(r, 0)
 }

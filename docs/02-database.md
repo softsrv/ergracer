@@ -49,15 +49,13 @@ CREATE INDEX idx_users_email ON users (email);
 
 ### `refresh_tokens`
 
-Stores hashed refresh tokens. The raw token is never persisted. Token rotation is tracked via `token_family` to enable theft detection.
+Stores hashed refresh tokens. The raw token is never persisted. Tokens are **not rotated**: a refresh reuses the same token row and updates `last_used_at` and device metadata in place.
 
 ```sql
 CREATE TABLE refresh_tokens (
     id                  UUID PRIMARY KEY,          -- UUIDv7
     user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash          TEXT NOT NULL,             -- SHA-256(raw_token), hex-encoded
-    token_family        UUID NOT NULL,             -- shared across rotation chain
-    previous_token_id   UUID REFERENCES refresh_tokens(id),  -- parent in chain
     device_name         TEXT,                      -- e.g. "Chrome on macOS"
     ip_address          INET,                      -- source IP at issuance
     user_agent          TEXT,
@@ -68,16 +66,16 @@ CREATE TABLE refresh_tokens (
 );
 
 CREATE INDEX idx_refresh_tokens_token_hash   ON refresh_tokens (token_hash);
-CREATE INDEX idx_refresh_tokens_token_family ON refresh_tokens (token_family);
 CREATE INDEX idx_refresh_tokens_user_id      ON refresh_tokens (user_id);
 CREATE INDEX idx_refresh_tokens_expires_at   ON refresh_tokens (expires_at);
 ```
 
+> The original schema (migration 2) had `token_family` and `previous_token_id` columns for rotation-based theft detection. Migration 5 dropped them when rotation was removed.
+
 **Key invariants:**
 - `token_hash` is `hex(SHA-256(raw_token))`. The raw token is never stored.
-- All tokens created by rotating a given session share the same `token_family`.
-- A new login session creates a new `token_family` (fresh UUIDv7).
-- `revoked_at` being non-null means the token is dead. It is kept for 90 days for forensic audit before the cleanup job deletes it.
+- Each login creates exactly one row; refresh updates that row rather than creating a new one.
+- `revoked_at` being non-null means the token is dead (set on logout or password reset). The daily cleanup job purges expired/revoked rows per the retention policy.
 
 ---
 
@@ -109,14 +107,14 @@ CREATE INDEX idx_prt_expires_at ON password_reset_tokens (expires_at);
 
 ### `email_verification_codes`
 
-6-digit numeric codes sent to verify a new user's email address. Short-lived; security relies on short expiry and rate limiting rather than cryptographic obscurity.
+Hashed tokens backing the email-verification **link** sent to a new user. The table name is historical; verification is link-based, not a 6-digit code. The raw token travels only in the verification link URL; only its SHA-256 hash is stored.
 
 ```sql
 CREATE TABLE email_verification_codes (
     id          UUID PRIMARY KEY,          -- UUIDv7
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    code        TEXT NOT NULL,             -- 6-digit numeric, stored plaintext
-    expires_at  TIMESTAMPTZ NOT NULL,      -- 15 minutes from creation
+    token_hash  TEXT NOT NULL,             -- SHA-256(raw_token), hex-encoded
+    expires_at  TIMESTAMPTZ NOT NULL,      -- 24 hours from creation
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     used_at     TIMESTAMPTZ               -- null = not yet used
 );
@@ -125,9 +123,11 @@ CREATE INDEX idx_evc_user_id    ON email_verification_codes (user_id);
 CREATE INDEX idx_evc_expires_at ON email_verification_codes (expires_at);
 ```
 
+> Migration 4 created this with a plaintext `code` column; migration 6 renamed it to `token_hash` when verification switched from 6-digit codes to hashed links.
+
 **Key invariants:**
-- At most 3 codes may be issued per email per hour (enforced in the service layer before insert).
-- A code is valid only if `used_at IS NULL` and `expires_at > NOW()`.
+- At most 3 verification emails may be issued per user per hour (enforced in the service layer before insert).
+- A token is valid only if `used_at IS NULL` and `expires_at > NOW()`.
 - The cleanup job removes rows where `used_at IS NOT NULL` and older than 7 days, or where `expires_at < NOW() - INTERVAL '1 day'`.
 
 ---

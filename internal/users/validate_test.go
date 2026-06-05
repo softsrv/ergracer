@@ -1,6 +1,7 @@
 package users_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/softsrv/starter/internal/users"
@@ -75,6 +76,8 @@ func TestValidatePassword(t *testing.T) {
 		{"too short", "short", 8, true},
 		{"exactly min", "12345678", 8, false},
 		{"empty", "", 8, true},
+		{"exactly 72 bytes ok", strings.Repeat("a", 72), 8, false},
+		{"73 bytes rejected", strings.Repeat("a", 73), 8, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

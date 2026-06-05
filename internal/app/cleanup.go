@@ -11,7 +11,7 @@ import (
 // RunTokenCleanup runs the token maintenance job at startup and then daily at
 // 03:00. It blocks until ctx is cancelled.
 func RunTokenCleanup(ctx context.Context, q *db.Queries) {
-	CleanupTokens(context.Background(), q)
+	CleanupTokens(ctx, q)
 
 	for {
 		now := time.Now()
@@ -26,7 +26,7 @@ func RunTokenCleanup(ctx context.Context, q *db.Queries) {
 		case <-time.After(time.Until(next)):
 		}
 
-		CleanupTokens(context.Background(), q)
+		CleanupTokens(ctx, q)
 	}
 }
 

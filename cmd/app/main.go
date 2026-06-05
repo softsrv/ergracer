@@ -105,7 +105,6 @@ func main() {
 		JWTSecret:         cfg.JWTSecret,
 		Secure:            cfg.AppEnv == "production",
 		TrustedProxyCount: cfg.TrustedProxyCount,
-		MetricsToken:      cfg.MetricsToken,
 	})
 
 	srv := &http.Server{
@@ -162,7 +161,6 @@ type config struct {
 	DBMaxConns         int
 	DBMinConns         int
 	TrustedProxyCount  int
-	MetricsToken       string
 	JWTSecret          string
 	JWTAccessExpiry    time.Duration
 	RefreshTokenExpiry time.Duration
@@ -211,8 +209,6 @@ func mustLoadConfig() config {
 	if err != nil {
 		cfg.TrustedProxyCount = 0
 	}
-
-	cfg.MetricsToken = os.Getenv("METRICS_TOKEN")
 
 	cfg.JWTAccessExpiry, err = time.ParseDuration(getEnvOrDefault("JWT_ACCESS_EXPIRY", "15m"))
 	if err != nil {

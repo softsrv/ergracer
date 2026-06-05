@@ -42,6 +42,14 @@ func (s *UserService) ListSessions(ctx context.Context, userID uuid.UUID) ([]db.
 	return sessions, nil
 }
 
+// DeleteAccount permanently deletes the user and all associated data via cascade.
+func (s *UserService) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
+	if err := s.q.DeleteUserByID(ctx, userID); err != nil {
+		return fmt.Errorf("delete account: %w", err)
+	}
+	return nil
+}
+
 // RevokeSession revokes a specific refresh token, enforcing ownership.
 // It returns the revoked token so the caller can determine whether it was the
 // caller's own active session.

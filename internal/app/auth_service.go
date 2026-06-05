@@ -66,17 +66,32 @@ type AuthService struct {
 	mailer email.Mailer
 	cfg    AuthServiceConfig
 
+	// dummyHash is compared against the supplied password when the email does
+	// not exist, so the login path spends comparable time whether or not the
+	// account is real. This closes the timing oracle that would otherwise leak
+	// which emails are registered.
+	dummyHash []byte
+
 	// wg tracks background email goroutines so Shutdown can drain them cleanly.
 	wg sync.WaitGroup
 }
 
 // NewAuthService constructs an AuthService with all dependencies injected.
 func NewAuthService(q *db.Queries, pool pgxBeginner, mailer email.Mailer, cfg AuthServiceConfig) *AuthService {
+	// Precompute a throwaway hash at the configured cost so the no-user login
+	// path can perform an equivalent bcrypt comparison. If generation fails we
+	// leave it nil; Login handles that by skipping the comparison.
+	dummyHash, err := bcrypt.GenerateFromPassword([]byte("timing-equalizer-not-a-real-password"), cfg.BCryptCost)
+	if err != nil {
+		slog.Error("generate dummy password hash", "error", err)
+	}
+
 	return &AuthService{
-		q:      q,
-		pool:   pool,
-		mailer: mailer,
-		cfg:    cfg,
+		q:         q,
+		pool:      pool,
+		mailer:    mailer,
+		cfg:       cfg,
+		dummyHash: dummyHash,
 	}
 }
 
@@ -142,6 +157,11 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string, meta
 	user, err := s.q.GetUserByEmail(ctx, normalizedEmail)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			// Spend comparable time to the real-password path so response
+			// latency doesn't reveal whether the email is registered.
+			if s.dummyHash != nil {
+				_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
+			}
 			return TokenResult{}, ErrInvalidCredentials
 		}
 		return TokenResult{}, fmt.Errorf("get user: %w", err)
@@ -390,6 +410,32 @@ func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string, meta Dev
 	}
 	result.EmailVerified = true
 	return result, nil
+}
+
+// ChangePassword verifies the current password and replaces it with a new one.
+func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
+	user, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	if err := users.ValidatePassword(newPassword, s.cfg.PasswordMinLen); err != nil {
+		return err
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), s.cfg.BCryptCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	return s.q.UpdatePasswordHash(ctx, db.UpdatePasswordHashParams{
+		ID:           userID,
+		PasswordHash: string(newHash),
+	})
 }
 
 // ResendVerification issues a fresh verification code if rate limit not exceeded.

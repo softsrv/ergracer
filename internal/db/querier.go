@@ -13,6 +13,7 @@ import (
 
 type Querier interface {
 	CountRecentPasswordResetsByEmail(ctx context.Context, email string) (int64, error)
+	DeleteUserByID(ctx context.Context, id uuid.UUID) error
 	CountRecentVerificationCodesByUserID(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)

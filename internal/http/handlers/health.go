@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -37,23 +35,5 @@ func HandleReadiness(pool DBPinger) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	}
-}
-
-// HandleMetrics returns the metrics endpoint handler. If metricsToken is empty
-// the handler returns 404, effectively disabling the endpoint.
-func HandleMetrics(metricsToken string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if metricsToken == "" {
-			http.NotFound(w, r)
-			return
-		}
-		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if subtle.ConstantTimeCompare([]byte(got), []byte(metricsToken)) != 1 {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("# metrics endpoint — Prometheus integration pending\n"))
 	}
 }
