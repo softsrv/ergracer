@@ -14,7 +14,7 @@ export
         smtp4dev smtp4dev-stop \
         migrate-up migrate-down migrate-create migrate-status \
         sqlc-generate \
-        docker-build prod clean
+        docker-build docker-run prod clean
 
 ## ── Development ─────────────────────────────────────────────────────────────
 
@@ -103,6 +103,12 @@ sqlc-generate:
 
 docker-build:
 	docker build -t $(APP_NAME):dev .
+
+docker-run:
+	docker run --rm -d \
+	  --env-file .env \
+	  -p $(or $(PORT),8080):$(or $(PORT),8080) \
+	  $(APP_NAME):dev
 
 prod:
 	docker build -t $(APP_NAME):prod --build-arg APP_ENV=production .
