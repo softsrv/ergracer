@@ -3,7 +3,30 @@ package handlers
 import (
 	"net/http"
 	"time"
+
+	"github.com/softsrv/ergracer/internal/app"
 )
+
+func setTokenCookies(w http.ResponseWriter, result app.TokenResult, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    result.AccessToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  result.AccessTokenExpiry,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    result.RefreshToken,
+		Path:     "/auth",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  result.RefreshTokenExpiry,
+	})
+}
 
 // clearAuthCookies expires both auth cookies on the response.
 func clearAuthCookies(w http.ResponseWriter, secure bool) {

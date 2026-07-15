@@ -3,7 +3,7 @@ package auth_test
 import (
 	"testing"
 
-	"github.com/softsrv/starter/internal/auth"
+	"github.com/softsrv/ergracer/internal/auth"
 )
 
 func TestGenerateRefreshToken(t *testing.T) {

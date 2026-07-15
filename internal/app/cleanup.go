@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/softsrv/starter/internal/db"
+	"github.com/softsrv/ergracer/internal/db"
 )
 
 // RunTokenCleanup runs the token maintenance job at startup and then daily at

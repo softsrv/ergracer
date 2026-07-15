@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/softsrv/starter/internal/http/middleware"
+	"github.com/softsrv/ergracer/internal/http/middleware"
 )
 
 func TestRateLimiter(t *testing.T) {

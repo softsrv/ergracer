@@ -8,14 +8,15 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/mssola/useragent"
 
-	"github.com/softsrv/starter/internal/app"
-	"github.com/softsrv/starter/internal/db"
-	"github.com/softsrv/starter/internal/http/middleware"
+	"github.com/softsrv/ergracer/internal/app"
+	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/http/middleware"
 )
 
 // authServicer defines the subset of app.AuthService that AuthHandler requires.
@@ -142,6 +143,34 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	htmxRedirect(w, "/dashboard")
+}
+
+// SilentRefresh exchanges a valid refresh token for a new access token and
+// redirects the user to the original destination. Used when the JWT has expired
+// but a long-lived refresh token is still available.
+func (h *AuthHandler) SilentRefresh(w http.ResponseWriter, r *http.Request) {
+	next := r.URL.Query().Get("next")
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
+		next = "/dashboard"
+	}
+
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	meta := h.deviceMeta(r)
+	result, err := h.auth.Refresh(r.Context(), cookie.Value, meta)
+	if err != nil {
+		slog.WarnContext(r.Context(), "silent refresh failed", "error", err)
+		clearAuthCookies(w, h.secure)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	h.setTokenCookies(w, result)
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -272,24 +301,7 @@ func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request)
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func (h *AuthHandler) setTokenCookies(w http.ResponseWriter, result app.TokenResult) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    result.AccessToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.secure,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  result.AccessTokenExpiry,
-	})
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    result.RefreshToken,
-		Path:     "/auth",
-		HttpOnly: true,
-		Secure:   h.secure,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  result.RefreshTokenExpiry,
-	})
+	setTokenCookies(w, result, h.secure)
 }
 
 func (h *AuthHandler) renderError(w http.ResponseWriter, r *http.Request, status int, msg string) {
@@ -307,14 +319,14 @@ func htmxRedirect(w http.ResponseWriter, path string) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// deviceMeta extracts client IP and user-agent metadata from the request.
-// Client-IP extraction goes through middleware.ClientIP, which only trusts
-// X-Forwarded-For when the service is configured behind trusted proxies — so
-// the stored IP can't be spoofed in a direct-to-internet deployment.
 func (h *AuthHandler) deviceMeta(r *http.Request) app.DeviceMeta {
+	return deviceMetaFromRequest(r, h.trustedProxyCount)
+}
+
+func deviceMetaFromRequest(r *http.Request, trustedProxyCount int) app.DeviceMeta {
 	var addr *netip.Addr
 
-	if parsed, err := netip.ParseAddr(middleware.ClientIP(r, h.trustedProxyCount)); err == nil {
+	if parsed, err := netip.ParseAddr(middleware.ClientIP(r, trustedProxyCount)); err == nil {
 		addr = &parsed
 	}
 

@@ -1,3 +1,3 @@
-# softsrv starter repo
+# ergracer
 
-This repo represents a generic golang web application. It started as an architecture.md file that I wrote and evolved based on suggestions from the LLM. Then that document was fed into claude and iterated on until it got to where I felt it was ready to be the base template repository for my other projects. I selected the different components of the tech stack with the goal of keeping everything fast and simple.
+A Go web application built on the softsrv template. Developed iteratively from an architecture document, using html/template, HTMX, Tailwind/DaisyUI, pgx/v5, sqlc, and JWT-based auth. The stack is optimized for simplicity and speed.

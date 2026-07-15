@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
@@ -10,17 +13,20 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/softsrv/starter/internal/app"
-	"github.com/softsrv/starter/internal/db"
-	"github.com/softsrv/starter/internal/email"
-	internalhttp "github.com/softsrv/starter/internal/http"
-	"github.com/softsrv/starter/internal/http/handlers"
-	"github.com/softsrv/starter/web"
+	"github.com/softsrv/ergracer/internal/app"
+	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/email"
+	internalhttp "github.com/softsrv/ergracer/internal/http"
+	"github.com/softsrv/ergracer/internal/http/handlers"
+	oauthpkg "github.com/softsrv/ergracer/internal/oauth"
+	"github.com/softsrv/ergracer/internal/secrets"
+	"github.com/softsrv/ergracer/web"
 )
 
 func main() {
@@ -74,6 +80,66 @@ func main() {
 	})
 	userSvc := app.NewUserService(queries)
 
+	// ── OAuth ─────────────────────────────────────────────────────────────────
+	var encrypter *secrets.Encrypter
+	if len(cfg.OAuthTokenEncKey) == 32 {
+		var encErr error
+		encrypter, encErr = secrets.New(cfg.OAuthTokenEncKey)
+		if encErr != nil {
+			slog.Error("build token encrypter", "error", encErr)
+			os.Exit(1)
+		}
+	}
+
+	baseURL := strings.TrimRight(cfg.AppBaseURL, "/")
+
+	var discordClient *oauthpkg.DiscordClient
+	var discordAuthorizeURL func(string) string
+	var discordBotInstallURL string
+	if cfg.DiscordClientID != "" {
+		discordClient = oauthpkg.NewDiscordClient(
+			cfg.DiscordClientID,
+			cfg.DiscordClientSecret,
+			baseURL+"/auth/discord/callback",
+			nil,
+		)
+		discordAuthorizeURL = discordClient.AuthorizeURL
+		discordBotInstallURL = discordClient.BotInstallURL(cfg.DiscordBotPermissions)
+	}
+
+	var concept2Client *oauthpkg.Concept2Client
+	var concept2AuthorizeURL func(string) string
+	if cfg.Concept2ClientID != "" {
+		if encrypter == nil {
+			slog.Error("OAUTH_TOKEN_ENC_KEY is required when Concept2 OAuth is enabled")
+			os.Exit(1)
+		}
+		concept2Client = oauthpkg.NewConcept2Client(
+			cfg.Concept2ClientID,
+			cfg.Concept2ClientSecret,
+			baseURL+"/auth/concept2/link/callback",
+			cfg.Concept2APIBase,
+			nil,
+		)
+		concept2AuthorizeURL = concept2Client.AuthorizeURL
+	}
+
+	var oauthSvc *app.OAuthService
+	if discordClient != nil || concept2Client != nil {
+		oauthSvc = app.NewOAuthService(queries, pool, discordClient, concept2Client, encrypter, authSvc)
+	}
+
+	// ── Discord interactions handler ───────────────────────────────────────────
+	var discordInteractionsH *handlers.DiscordHandler
+	if cfg.DiscordPublicKey != "" {
+		pubKeyBytes, hexErr := hex.DecodeString(cfg.DiscordPublicKey)
+		if hexErr != nil || len(pubKeyBytes) != ed25519.PublicKeySize {
+			slog.Error("DISCORD_PUBLIC_KEY must be a 64-character hex-encoded Ed25519 public key")
+			os.Exit(1)
+		}
+		discordInteractionsH = handlers.NewDiscordHandler(ed25519.PublicKey(pubKeyBytes))
+	}
+
 	// ── Templates ─────────────────────────────────────────────────────────────
 	// Build a base template containing only the layout and shared partials.
 	// Page templates are NOT loaded here — the TemplateRenderer clones this
@@ -97,14 +163,19 @@ func main() {
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	handler := internalhttp.NewRouter(cleanupCtx, internalhttp.RouterConfig{
-		Queries:           queries,
-		Pool:              pool,
-		AuthSvc:           authSvc,
-		UserSvc:           userSvc,
-		Renderer:          renderer,
-		JWTSecret:         cfg.JWTSecret,
-		Secure:            cfg.AppEnv == "production",
-		TrustedProxyCount: cfg.TrustedProxyCount,
+		Queries:              queries,
+		Pool:                 pool,
+		AuthSvc:              authSvc,
+		UserSvc:              userSvc,
+		OAuthSvc:             oauthSvc,
+		DiscordAuthorizeURL:  discordAuthorizeURL,
+		DiscordBotInstallURL: discordBotInstallURL,
+		DiscordInteractions:  discordInteractionsH,
+		Concept2AuthorizeURL: concept2AuthorizeURL,
+		Renderer:             renderer,
+		JWTSecret:            cfg.JWTSecret,
+		Secure:               cfg.AppEnv == "production",
+		TrustedProxyCount:    cfg.TrustedProxyCount,
 	})
 
 	srv := &http.Server{
@@ -172,6 +243,15 @@ type config struct {
 	SMTPPassword       string
 	SMTPFromEmail      string
 	SMTPFromName       string
+	OAuthTokenEncKey      []byte
+	DiscordClientID       string
+	DiscordClientSecret   string
+	DiscordBotPermissions int
+	DiscordPublicKey      string // hex-encoded Ed25519 public key
+	DiscordApplicationID  string
+	Concept2ClientID      string
+	Concept2ClientSecret  string
+	Concept2APIBase       string
 }
 
 func mustLoadConfig() config {
@@ -229,6 +309,31 @@ func mustLoadConfig() config {
 	if err != nil {
 		cfg.PasswordMinLen = 8
 	}
+
+	{
+		raw := os.Getenv("OAUTH_TOKEN_ENC_KEY")
+		if raw != "" {
+			key, decErr := base64.StdEncoding.DecodeString(raw)
+			if decErr != nil || len(key) != 32 {
+				slog.Error("OAUTH_TOKEN_ENC_KEY must be base64-encoded 32 bytes")
+				os.Exit(1)
+			}
+			cfg.OAuthTokenEncKey = key
+		}
+	}
+
+	cfg.DiscordClientID = os.Getenv("DISCORD_CLIENT_ID")
+	cfg.DiscordClientSecret = os.Getenv("DISCORD_CLIENT_SECRET")
+	cfg.DiscordBotPermissions, err = strconv.Atoi(getEnvOrDefault("DISCORD_BOT_PERMISSIONS", "0"))
+	if err != nil {
+		cfg.DiscordBotPermissions = 0
+	}
+	cfg.DiscordPublicKey = os.Getenv("DISCORD_PUBLIC_KEY")
+	cfg.DiscordApplicationID = os.Getenv("DISCORD_APPLICATION_ID")
+
+	cfg.Concept2ClientID = os.Getenv("CONCEPT2_CLIENT_ID")
+	cfg.Concept2ClientSecret = os.Getenv("CONCEPT2_CLIENT_SECRET")
+	cfg.Concept2APIBase = getEnvOrDefault("CONCEPT2_API_BASE", "https://log.concept2.com")
 
 	return cfg
 }

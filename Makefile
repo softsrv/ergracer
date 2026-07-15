@@ -1,6 +1,6 @@
 APP_NAME         := app
 BIN_DIR          := ./bin
-MODULE           := github.com/softsrv/starter
+MODULE           := github.com/softsrv/ergracer
 SMTP4DEV_NAME    := $(APP_NAME)-smtp4dev
 SMTP4DEV_SMTP    := 2525
 SMTP4DEV_WEB     := 5000
@@ -9,7 +9,7 @@ SMTP4DEV_WEB     := 5000
 -include .env
 export
 
-.PHONY: dev run build test fmt lint \
+.PHONY: dev stop run build test fmt lint \
         daisyui-install tailwind tailwind-watch \
         smtp4dev smtp4dev-stop \
         migrate-up migrate-down migrate-create migrate-status \
@@ -18,9 +18,21 @@ export
 
 ## ── Development ─────────────────────────────────────────────────────────────
 
-# Full hot-reload: smtp4dev container + Go (air) + Tailwind watch in parallel
+# Full hot-reload: smtp4dev container + Go (air) + Tailwind watch in parallel.
+# trap 'kill 0' ensures Ctrl+C kills the entire process group, including air's
+# spawned ./tmp/main grandchild that recursive make -j2 would leave behind.
 dev: smtp4dev
-	$(MAKE) -j2 air tailwind-watch
+	@trap 'kill 0' INT TERM; \
+	  air & \
+	  tailwindcss -i ./web/static/css/app.css -o ./web/static/css/dist/app.css --watch & \
+	  wait
+
+# Kill any stray dev processes left over from a previous session.
+stop:
+	@pkill -f './tmp/main' 2>/dev/null || true
+	@pkill -f 'air$$' 2>/dev/null || true
+	@pkill -f 'tailwindcss.*--watch' 2>/dev/null || true
+	@$(MAKE) smtp4dev-stop
 
 smtp4dev:
 	@if [ -z "$$(docker ps -q -f name=^$(SMTP4DEV_NAME)$$)" ]; then \

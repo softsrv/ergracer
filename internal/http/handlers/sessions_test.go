@@ -9,11 +9,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/starter/internal/app"
-	"github.com/softsrv/starter/internal/auth"
-	"github.com/softsrv/starter/internal/db"
-	"github.com/softsrv/starter/internal/http/handlers"
-	"github.com/softsrv/starter/internal/http/middleware"
+	"github.com/softsrv/ergracer/internal/app"
+	"github.com/softsrv/ergracer/internal/auth"
+	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/http/handlers"
+	"github.com/softsrv/ergracer/internal/http/middleware"
 )
 
 // stubUserService implements the (unexported) userServicer interface that

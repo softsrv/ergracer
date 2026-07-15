@@ -1,4 +1,4 @@
-module github.com/softsrv/starter
+module github.com/softsrv/ergracer
 
 go 1.23
 

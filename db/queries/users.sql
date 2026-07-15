@@ -26,3 +26,8 @@ UPDATE users SET password_hash = $2, failed_login_attempts = 0, locked_until = N
 
 -- name: DeleteUserByID :exec
 DELETE FROM users WHERE id = $1;
+
+-- name: CreateUserNoPassword :one
+INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
+VALUES ($1, $2, NULL, true, NOW(), NOW())
+RETURNING *;

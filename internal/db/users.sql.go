@@ -19,9 +19,9 @@ RETURNING id, email, password_hash, email_verified, failed_login_attempts, locke
 `
 
 type CreateUserParams struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"password_hash"`
+	ID           uuid.UUID   `json:"id"`
+	Email        string      `json:"email"`
+	PasswordHash pgtype.Text `json:"password_hash"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -38,6 +38,42 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const createUserNoPassword = `-- name: CreateUserNoPassword :one
+INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
+VALUES ($1, $2, NULL, true, NOW(), NOW())
+RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, created_at, updated_at
+`
+
+type CreateUserNoPasswordParams struct {
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+}
+
+func (q *Queries) CreateUserNoPassword(ctx context.Context, arg CreateUserNoPasswordParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUserNoPassword, arg.ID, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.EmailVerified,
+		&i.FailedLoginAttempts,
+		&i.LockedUntil,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteUserByID = `-- name: DeleteUserByID :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteUserByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserByID, id)
+	return err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -126,20 +162,11 @@ UPDATE users SET password_hash = $2, failed_login_attempts = 0, locked_until = N
 `
 
 type UpdatePasswordHashParams struct {
-	ID           uuid.UUID `json:"id"`
-	PasswordHash string    `json:"password_hash"`
+	ID           uuid.UUID   `json:"id"`
+	PasswordHash pgtype.Text `json:"password_hash"`
 }
 
 func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error {
 	_, err := q.db.Exec(ctx, updatePasswordHash, arg.ID, arg.PasswordHash)
-	return err
-}
-
-const deleteUserByID = `-- name: DeleteUserByID :exec
-DELETE FROM users WHERE id = $1
-`
-
-func (q *Queries) DeleteUserByID(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteUserByID, id)
 	return err
 }

@@ -5,12 +5,13 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/starter/internal/auth"
-	"github.com/softsrv/starter/internal/db"
+	"github.com/softsrv/ergracer/internal/auth"
+	"github.com/softsrv/ergracer/internal/db"
 )
 
 type userContextKey struct{}
@@ -33,8 +34,16 @@ func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http
 
 			claims, err := auth.ValidateAccessToken(tokenStr, jwtSecret)
 			if err != nil {
+				if errors.Is(err, auth.ErrTokenExpired) && r.Header.Get("HX-Request") == "" {
+					// For full-page navigations, attempt a silent refresh instead of
+					// sending the user to /login — the refresh token may still be valid.
+					if _, cookieErr := r.Cookie("refresh_token"); cookieErr == nil {
+						target := "/auth/silent-refresh?next=" + url.QueryEscape(r.URL.RequestURI())
+						http.Redirect(w, r, target, http.StatusFound)
+						return
+					}
+				}
 				if errors.Is(err, auth.ErrTokenExpired) {
-					// Signal HTMX clients to refresh.
 					w.Header().Set("HX-Trigger", "token-expired")
 				}
 				respondUnauthorized(w, r)

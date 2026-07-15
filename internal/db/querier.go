@@ -13,12 +13,18 @@ import (
 
 type Querier interface {
 	CountRecentPasswordResetsByEmail(ctx context.Context, email string) (int64, error)
-	DeleteUserByID(ctx context.Context, id uuid.UUID) error
 	CountRecentVerificationCodesByUserID(ctx context.Context, userID uuid.UUID) (int64, error)
+	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (OauthIdentity, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateUserNoPassword(ctx context.Context, arg CreateUserNoPasswordParams) (User, error)
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
+	DeleteOAuthIdentity(ctx context.Context, id uuid.UUID) error
 	DeleteStalePasswordResetTokens(ctx context.Context) (int64, error)
 	DeleteStaleVerificationCodes(ctx context.Context) (int64, error)
+	DeleteUserByID(ctx context.Context, id uuid.UUID) error
+	GetOAuthIdentityByProviderUserID(ctx context.Context, arg GetOAuthIdentityByProviderUserIDParams) (OauthIdentity, error)
+	GetOAuthIdentityByUserAndProvider(ctx context.Context, arg GetOAuthIdentityByUserAndProviderParams) (OauthIdentity, error)
+	GetOAuthTokenByIdentity(ctx context.Context, oauthIdentityID uuid.UUID) (OauthToken, error)
 	GetOldestRecentVerificationCode(ctx context.Context, userID uuid.UUID) (pgtype.Timestamptz, error)
 	GetPasswordResetTokenByHash(ctx context.Context, tokenHash string) (PasswordResetToken, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
@@ -31,6 +37,7 @@ type Querier interface {
 	InsertPasswordResetToken(ctx context.Context, arg InsertPasswordResetTokenParams) (PasswordResetToken, error)
 	InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (RefreshToken, error)
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID uuid.UUID) ([]RefreshToken, error)
+	ListOAuthIdentitiesByUser(ctx context.Context, userID uuid.UUID) ([]OauthIdentity, error)
 	LockAccount(ctx context.Context, arg LockAccountParams) error
 	MarkPasswordResetTokenUsed(ctx context.Context, id uuid.UUID) error
 	MarkVerificationCodeUsed(ctx context.Context, id uuid.UUID) error
@@ -40,6 +47,7 @@ type Querier interface {
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error
 	UpdateRefreshTokenLastUsed(ctx context.Context, arg UpdateRefreshTokenLastUsedParams) error
+	UpsertOAuthToken(ctx context.Context, arg UpsertOAuthTokenParams) (OauthToken, error)
 }
 
 var _ Querier = (*Queries)(nil)

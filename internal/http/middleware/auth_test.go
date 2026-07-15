@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/starter/internal/auth"
-	"github.com/softsrv/starter/internal/db"
-	"github.com/softsrv/starter/internal/http/middleware"
+	"github.com/softsrv/ergracer/internal/auth"
+	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/http/middleware"
 )
 
 const authTestSecret = "auth-test-secret-that-is-at-least-32-bytes!!"

@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/softsrv/starter/internal/auth"
-	"github.com/softsrv/starter/internal/db"
-	"github.com/softsrv/starter/internal/email"
-	"github.com/softsrv/starter/internal/users"
+	"github.com/softsrv/ergracer/internal/auth"
+	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/email"
+	"github.com/softsrv/ergracer/internal/users"
 )
 
 const (
@@ -135,7 +135,7 @@ func (s *AuthService) Register(ctx context.Context, rawEmail, password string) (
 	user, err := s.q.CreateUser(ctx, db.CreateUserParams{
 		ID:           id,
 		Email:        normalizedEmail,
-		PasswordHash: string(hash),
+		PasswordHash: pgtype.Text{String: string(hash), Valid: true},
 	})
 	if err != nil {
 		return db.User{}, fmt.Errorf("create user: %w", err)
@@ -172,7 +172,13 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string, meta
 		return TokenResult{}, ErrAccountLocked
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+	if !user.PasswordHash.Valid {
+		if s.dummyHash != nil {
+			_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
+		}
+		return TokenResult{}, ErrInvalidCredentials
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(password)); err != nil {
 		if incrErr := s.q.IncrementFailedLoginAttempts(ctx, user.ID); incrErr != nil {
 			slog.Error("increment failed login attempts", "user_id", user.ID, "error", incrErr)
 		}
@@ -192,7 +198,7 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string, meta
 		slog.Error("reset login attempts", "error", err, "user_id", user.ID)
 	}
 
-	result, err := s.issueTokenPair(ctx, user.ID, user.Email, meta)
+	result, err := s.IssueTokenPair(ctx, user.ID, user.Email, meta)
 	if err != nil {
 		return TokenResult{}, err
 	}
@@ -348,7 +354,7 @@ func (s *AuthService) CompletePasswordReset(ctx context.Context, rawToken, newPa
 	qtx := s.q.WithTx(tx)
 	if err := qtx.UpdatePasswordHash(ctx, db.UpdatePasswordHashParams{
 		ID:           prt.UserID,
-		PasswordHash: string(newHash),
+		PasswordHash: pgtype.Text{String: string(newHash), Valid: true},
 	}); err != nil {
 		return fmt.Errorf("update password: %w", err)
 	}
@@ -404,7 +410,7 @@ func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string, meta Dev
 	if err != nil {
 		return TokenResult{}, fmt.Errorf("get user: %w", err)
 	}
-	result, err := s.issueTokenPair(ctx, user.ID, user.Email, meta)
+	result, err := s.IssueTokenPair(ctx, user.ID, user.Email, meta)
 	if err != nil {
 		return TokenResult{}, err
 	}
@@ -419,7 +425,10 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 		return fmt.Errorf("get user: %w", err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)); err != nil {
+	if !user.PasswordHash.Valid {
+		return ErrInvalidCredentials
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(currentPassword)); err != nil {
 		return ErrInvalidCredentials
 	}
 
@@ -434,7 +443,33 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 
 	return s.q.UpdatePasswordHash(ctx, db.UpdatePasswordHashParams{
 		ID:           userID,
-		PasswordHash: string(newHash),
+		PasswordHash: pgtype.Text{String: string(newHash), Valid: true},
+	})
+}
+
+// SetPassword sets a password for a user who currently has none (e.g. signed up via OAuth).
+func (s *AuthService) SetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error {
+	user, err := s.q.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+
+	if user.PasswordHash.Valid {
+		return fmt.Errorf("account already has a password: use change password instead")
+	}
+
+	if err := users.ValidatePassword(newPassword, s.cfg.PasswordMinLen); err != nil {
+		return err
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), s.cfg.BCryptCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	return s.q.UpdatePasswordHash(ctx, db.UpdatePasswordHashParams{
+		ID:           userID,
+		PasswordHash: pgtype.Text{String: string(newHash), Valid: true},
 	})
 }
 
@@ -466,7 +501,7 @@ func (s *AuthService) ResendVerification(ctx context.Context, userID uuid.UUID) 
 
 // ── private helpers ───────────────────────────────────────────────────────────
 
-func (s *AuthService) issueTokenPair(
+func (s *AuthService) IssueTokenPair(
 	ctx context.Context,
 	userID uuid.UUID,
 	userEmail string,

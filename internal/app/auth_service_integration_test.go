@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/softsrv/starter/internal/app"
-	"github.com/softsrv/starter/internal/db"
-	"github.com/softsrv/starter/internal/email"
+	"github.com/softsrv/ergracer/internal/app"
+	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/email"
 )
 
 // testDB connects to the database pointed to by TEST_DATABASE_URL.

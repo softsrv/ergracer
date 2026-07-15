@@ -35,8 +35,8 @@ func IssueAccessToken(userID uuid.UUID, email, secret string, expiry time.Durati
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID.String(),
-			Issuer:    "starter",
-			Audience:  jwt.ClaimStrings{"starter"},
+			Issuer:    "ergracer",
+			Audience:  jwt.ClaimStrings{"ergracer"},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(exp),
 		},
@@ -53,12 +53,12 @@ func IssueAccessToken(userID uuid.UUID, email, secret string, expiry time.Durati
 
 // ValidateAccessToken parses and validates a JWT, returning its claims.
 func ValidateAccessToken(tokenStr, secret string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(secret), nil
-	}, jwt.WithIssuer("starter"), jwt.WithAudience("starter"))
+	}, jwt.WithIssuer("ergracer"), jwt.WithAudience("ergracer"))
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {

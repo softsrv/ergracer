@@ -20,6 +20,27 @@ type EmailVerificationCode struct {
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
+type OauthIdentity struct {
+	ID               uuid.UUID          `json:"id"`
+	UserID           uuid.UUID          `json:"user_id"`
+	Provider         string             `json:"provider"`
+	ProviderUserID   string             `json:"provider_user_id"`
+	ProviderUsername pgtype.Text        `json:"provider_username"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type OauthToken struct {
+	ID              uuid.UUID          `json:"id"`
+	OauthIdentityID uuid.UUID          `json:"oauth_identity_id"`
+	AccessTokenEnc  []byte             `json:"access_token_enc"`
+	RefreshTokenEnc []byte             `json:"refresh_token_enc"`
+	Scope           pgtype.Text        `json:"scope"`
+	ExpiresAt       pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type PasswordResetToken struct {
 	ID        uuid.UUID          `json:"id"`
 	UserID    uuid.UUID          `json:"user_id"`
@@ -45,7 +66,7 @@ type RefreshToken struct {
 type User struct {
 	ID                  uuid.UUID          `json:"id"`
 	Email               string             `json:"email"`
-	PasswordHash        string             `json:"password_hash"`
+	PasswordHash        pgtype.Text        `json:"password_hash"`
 	EmailVerified       bool               `json:"email_verified"`
 	FailedLoginAttempts int32              `json:"failed_login_attempts"`
 	LockedUntil         pgtype.Timestamptz `json:"locked_until"`

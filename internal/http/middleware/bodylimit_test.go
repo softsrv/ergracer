@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/softsrv/starter/internal/http/middleware"
+	"github.com/softsrv/ergracer/internal/http/middleware"
 )
 
 func TestBodyLimit(t *testing.T) {
