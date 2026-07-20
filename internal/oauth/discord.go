@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -39,7 +40,7 @@ type DiscordClient struct {
 // NewDiscordClient constructs a DiscordClient. Pass nil for httpClient to use the default.
 func NewDiscordClient(clientID, clientSecret, redirectURI string, httpClient *http.Client) *DiscordClient {
 	if httpClient == nil {
-		httpClient = &http.Client{}
+		httpClient = &http.Client{Timeout: 10 * time.Second}
 	}
 	return &DiscordClient{
 		clientID:     clientID,

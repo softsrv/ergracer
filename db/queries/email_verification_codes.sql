@@ -8,8 +8,11 @@ SELECT * FROM email_verification_codes
 WHERE token_hash = $1
 LIMIT 1;
 
--- name: MarkVerificationCodeUsed :exec
-UPDATE email_verification_codes SET used_at = NOW() WHERE id = $1;
+-- name: MarkVerificationCodeUsed :one
+UPDATE email_verification_codes
+SET used_at = NOW()
+WHERE id = $1 AND used_at IS NULL
+RETURNING id;
 
 -- name: CountRecentVerificationCodesByUserID :one
 SELECT COUNT(*) FROM email_verification_codes

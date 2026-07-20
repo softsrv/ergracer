@@ -22,6 +22,8 @@ type Querier interface {
 	DeleteStalePasswordResetTokens(ctx context.Context) (int64, error)
 	DeleteStaleVerificationCodes(ctx context.Context) (int64, error)
 	DeleteUserByID(ctx context.Context, id uuid.UUID) error
+	GetDiscordRegistration(ctx context.Context, arg GetDiscordRegistrationParams) (DiscordRegistration, error)
+	GetGuildSettings(ctx context.Context, guildID string) (DiscordGuildSetting, error)
 	GetOAuthIdentityByProviderUserID(ctx context.Context, arg GetOAuthIdentityByProviderUserIDParams) (OauthIdentity, error)
 	GetOAuthIdentityByUserAndProvider(ctx context.Context, arg GetOAuthIdentityByUserAndProviderParams) (OauthIdentity, error)
 	GetOAuthTokenByIdentity(ctx context.Context, oauthIdentityID uuid.UUID) (OauthToken, error)
@@ -36,17 +38,21 @@ type Querier interface {
 	InsertEmailVerificationCode(ctx context.Context, arg InsertEmailVerificationCodeParams) (EmailVerificationCode, error)
 	InsertPasswordResetToken(ctx context.Context, arg InsertPasswordResetTokenParams) (PasswordResetToken, error)
 	InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (RefreshToken, error)
+	LinkDiscordRegistrationToUser(ctx context.Context, arg LinkDiscordRegistrationToUserParams) error
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID uuid.UUID) ([]RefreshToken, error)
+	ListDiscordRegistrationsByUser(ctx context.Context, userID pgtype.UUID) ([]DiscordRegistration, error)
 	ListOAuthIdentitiesByUser(ctx context.Context, userID uuid.UUID) ([]OauthIdentity, error)
 	LockAccount(ctx context.Context, arg LockAccountParams) error
 	MarkPasswordResetTokenUsed(ctx context.Context, id uuid.UUID) error
-	MarkVerificationCodeUsed(ctx context.Context, id uuid.UUID) error
+	MarkVerificationCodeUsed(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	ResetLoginAttempts(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error
 	UpdateRefreshTokenLastUsed(ctx context.Context, arg UpdateRefreshTokenLastUsedParams) error
+	UpsertDiscordRegistration(ctx context.Context, arg UpsertDiscordRegistrationParams) (DiscordRegistration, error)
+	UpsertGuildSettings(ctx context.Context, arg UpsertGuildSettingsParams) (DiscordGuildSetting, error)
 	UpsertOAuthToken(ctx context.Context, arg UpsertOAuthTokenParams) (OauthToken, error)
 }
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/softsrv/ergracer/internal/app"
 	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/ergracer/internal/discord"
 	"github.com/softsrv/ergracer/internal/email"
 	internalhttp "github.com/softsrv/ergracer/internal/http"
 	"github.com/softsrv/ergracer/internal/http/handlers"
@@ -79,6 +80,7 @@ func main() {
 		AppName:        cfg.SMTPFromName,
 	})
 	userSvc := app.NewUserService(queries)
+	discordSvc := app.NewDiscordService(queries)
 
 	// ── OAuth ─────────────────────────────────────────────────────────────────
 	var encrypter *secrets.Encrypter
@@ -95,6 +97,7 @@ func main() {
 
 	var discordClient *oauthpkg.DiscordClient
 	var discordAuthorizeURL func(string) string
+	var discordLinkAuthorizeURL func(string) string
 	var discordBotInstallURL string
 	if cfg.DiscordClientID != "" {
 		discordClient = oauthpkg.NewDiscordClient(
@@ -105,6 +108,14 @@ func main() {
 		)
 		discordAuthorizeURL = discordClient.AuthorizeURL
 		discordBotInstallURL = discordClient.BotInstallURL(cfg.DiscordBotPermissions)
+
+		discordLinkClient := oauthpkg.NewDiscordClient(
+			cfg.DiscordClientID,
+			cfg.DiscordClientSecret,
+			baseURL+"/auth/discord/link/callback",
+			nil,
+		)
+		discordLinkAuthorizeURL = discordLinkClient.AuthorizeURL
 	}
 
 	var concept2Client *oauthpkg.Concept2Client
@@ -129,6 +140,11 @@ func main() {
 		oauthSvc = app.NewOAuthService(queries, pool, discordClient, concept2Client, encrypter, authSvc)
 	}
 
+	var rowingSvc *app.RowingService
+	if concept2Client != nil && encrypter != nil {
+		rowingSvc = app.NewRowingService(queries, concept2Client, encrypter, cfg.DiscordBotToken, nil)
+	}
+
 	// ── Discord interactions handler ───────────────────────────────────────────
 	var discordInteractionsH *handlers.DiscordHandler
 	if cfg.DiscordPublicKey != "" {
@@ -137,7 +153,20 @@ func main() {
 			slog.Error("DISCORD_PUBLIC_KEY must be a 64-character hex-encoded Ed25519 public key")
 			os.Exit(1)
 		}
-		discordInteractionsH = handlers.NewDiscordHandler(ed25519.PublicKey(pubKeyBytes))
+		discordInteractionsH = handlers.NewDiscordHandler(ed25519.PublicKey(pubKeyBytes), cfg.DiscordBotToken, nil, discordSvc)
+	}
+
+	if discordInteractionsH != nil && cfg.DiscordBotToken != "" {
+		regCtx, regCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		regErr := discord.RegisterCommands(regCtx, nil, cfg.DiscordBotToken, cfg.DiscordApplicationID, discord.Commands)
+		regCancel()
+		if regErr != nil {
+			slog.Error("discord command registration failed", "error", regErr)
+			// Non-fatal: log and continue. Previously-registered commands remain
+			// active in Discord until the next successful registration.
+		} else {
+			slog.Info("discord commands registered", "count", len(discord.Commands))
+		}
 	}
 
 	// ── Templates ─────────────────────────────────────────────────────────────
@@ -163,19 +192,22 @@ func main() {
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	handler := internalhttp.NewRouter(cleanupCtx, internalhttp.RouterConfig{
-		Queries:              queries,
-		Pool:                 pool,
-		AuthSvc:              authSvc,
-		UserSvc:              userSvc,
-		OAuthSvc:             oauthSvc,
-		DiscordAuthorizeURL:  discordAuthorizeURL,
-		DiscordBotInstallURL: discordBotInstallURL,
-		DiscordInteractions:  discordInteractionsH,
-		Concept2AuthorizeURL: concept2AuthorizeURL,
-		Renderer:             renderer,
-		JWTSecret:            cfg.JWTSecret,
-		Secure:               cfg.AppEnv == "production",
-		TrustedProxyCount:    cfg.TrustedProxyCount,
+		Queries:                 queries,
+		Pool:                    pool,
+		AuthSvc:                 authSvc,
+		UserSvc:                 userSvc,
+		OAuthSvc:                oauthSvc,
+		DiscordAuthorizeURL:     discordAuthorizeURL,
+		DiscordLinkAuthorizeURL: discordLinkAuthorizeURL,
+		DiscordBotInstallURL:    discordBotInstallURL,
+		DiscordInteractions:     discordInteractionsH,
+		Concept2AuthorizeURL:    concept2AuthorizeURL,
+		Concept2WebhookSecret:   cfg.Concept2WebhookSecret,
+		RowingSvc:               rowingSvc,
+		Renderer:                renderer,
+		JWTSecret:               cfg.JWTSecret,
+		Secure:                  cfg.AppEnv == "production",
+		TrustedProxyCount:       cfg.TrustedProxyCount,
 	})
 
 	srv := &http.Server{
@@ -249,9 +281,11 @@ type config struct {
 	DiscordBotPermissions int
 	DiscordPublicKey      string // hex-encoded Ed25519 public key
 	DiscordApplicationID  string
-	Concept2ClientID      string
-	Concept2ClientSecret  string
-	Concept2APIBase       string
+	DiscordBotToken       string
+	Concept2ClientID        string
+	Concept2ClientSecret    string
+	Concept2APIBase         string
+	Concept2WebhookSecret   string
 }
 
 func mustLoadConfig() config {
@@ -330,10 +364,12 @@ func mustLoadConfig() config {
 	}
 	cfg.DiscordPublicKey = os.Getenv("DISCORD_PUBLIC_KEY")
 	cfg.DiscordApplicationID = os.Getenv("DISCORD_APPLICATION_ID")
+	cfg.DiscordBotToken = os.Getenv("DISCORD_BOT_TOKEN")
 
 	cfg.Concept2ClientID = os.Getenv("CONCEPT2_CLIENT_ID")
 	cfg.Concept2ClientSecret = os.Getenv("CONCEPT2_CLIENT_SECRET")
 	cfg.Concept2APIBase = getEnvOrDefault("CONCEPT2_API_BASE", "https://log.concept2.com")
+	cfg.Concept2WebhookSecret = os.Getenv("CONCEPT2_WEBHOOK_SECRET")
 
 	return cfg
 }

@@ -74,6 +74,9 @@ func NewConcept2Client(clientID, clientSecret, redirectURI, apiBase string, http
 	}
 }
 
+// APIBase returns the base URL of the Concept2 API (e.g. "https://log.concept2.com").
+func (c *Concept2Client) APIBase() string { return c.apiBase }
+
 // AuthorizeURL returns the Concept2 OAuth2 authorization URL for the given state.
 func (c *Concept2Client) AuthorizeURL(state string) string {
 	params := url.Values{

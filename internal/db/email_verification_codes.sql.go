@@ -104,11 +104,16 @@ func (q *Queries) InsertEmailVerificationCode(ctx context.Context, arg InsertEma
 	return i, err
 }
 
-const markVerificationCodeUsed = `-- name: MarkVerificationCodeUsed :exec
-UPDATE email_verification_codes SET used_at = NOW() WHERE id = $1
+const markVerificationCodeUsed = `-- name: MarkVerificationCodeUsed :one
+UPDATE email_verification_codes
+SET used_at = NOW()
+WHERE id = $1 AND used_at IS NULL
+RETURNING id
 `
 
-func (q *Queries) MarkVerificationCodeUsed(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markVerificationCodeUsed, id)
-	return err
+func (q *Queries) MarkVerificationCodeUsed(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, markVerificationCodeUsed, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }

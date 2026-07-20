@@ -104,8 +104,12 @@ func IPKeyFunc(trustedProxies int) func(*http.Request) string {
 }
 
 // FormEmailKeyFunc extracts the email field from the form body.
+// On parse failure it falls back to the client IP so all failed-parse requests
+// do not share a single bucket.
 func FormEmailKeyFunc(r *http.Request) string {
-	_ = r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		return "ip:" + ClientIP(r, 0)
+	}
 	return "email:" + r.FormValue("email")
 }
 

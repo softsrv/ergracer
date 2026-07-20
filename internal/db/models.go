@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type DiscordGuildSetting struct {
+	ID              uuid.UUID          `json:"id"`
+	GuildID         string             `json:"guild_id"`
+	ReportChannelID string             `json:"report_channel_id"`
+	SetByUserID     string             `json:"set_by_user_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type DiscordRegistration struct {
+	ID              uuid.UUID          `json:"id"`
+	DiscordUserID   string             `json:"discord_user_id"`
+	DiscordUsername string             `json:"discord_username"`
+	GuildID         string             `json:"guild_id"`
+	GuildName       string             `json:"guild_name"`
+	UserID          pgtype.UUID        `json:"user_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type EmailVerificationCode struct {
 	ID        uuid.UUID          `json:"id"`
 	UserID    uuid.UUID          `json:"user_id"`

@@ -15,8 +15,8 @@ import (
 
 const deleteExpiredRefreshTokens = `-- name: DeleteExpiredRefreshTokens :execrows
 DELETE FROM refresh_tokens
-WHERE (expires_at < NOW() - INTERVAL '90 days')
-   OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '90 days')
+WHERE (expires_at < NOW() - INTERVAL '7 days')
+   OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '7 days')
 `
 
 func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) (int64, error) {

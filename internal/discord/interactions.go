@@ -1,26 +1,40 @@
 package discord
 
+// InteractionType identifies the kind of interaction Discord sent.
+type InteractionType int
+
+// ResponseType identifies the kind of response being sent back to Discord.
+type ResponseType int
+
 // Interaction type constants.
 const (
-	InteractionTypePing               = 1
-	InteractionTypeApplicationCommand = 2
+	InteractionTypePing               InteractionType = 1
+	InteractionTypeApplicationCommand InteractionType = 2
 )
 
 // Response type constants.
 const (
-	ResponseTypePong                     = 1
-	ResponseTypeChannelMessageWithSource = 4
+	ResponseTypePong                     ResponseType = 1
+	ResponseTypeChannelMessageWithSource ResponseType = 4
 )
 
 // Flag constants for interaction response data.
 const FlagEphemeral = 64
 
+// Permission bit constants for member permission checks.
+const (
+	PermissionAdministrator = 1 << 3 // 8
+	PermissionManageGuild   = 1 << 5 // 32
+)
+
 // Interaction is the top-level payload Discord POSTs to the interactions endpoint.
 type Interaction struct {
-	Type   int             `json:"type"`
-	Data   InteractionData `json:"data"`
-	Member *MemberData     `json:"member,omitempty"` // present for guild interactions
-	User   *UserData       `json:"user,omitempty"`   // present for DM interactions
+	Type      InteractionType `json:"type"`
+	GuildID   string          `json:"guild_id,omitempty"`
+	ChannelID string          `json:"channel_id,omitempty"`
+	Data      InteractionData `json:"data"`
+	Member    *MemberData     `json:"member,omitempty"` // present for guild interactions
+	User      *UserData       `json:"user,omitempty"`   // present for DM interactions
 }
 
 // InteractionData carries command-specific fields.
@@ -31,13 +45,16 @@ type InteractionData struct {
 
 // InteractionOption represents a single slash-command option value.
 type InteractionOption struct {
-	Name  string `json:"name"`
-	Value any    `json:"value"`
+	Name string `json:"name"`
+	// Value holds the option value as decoded by json.Unmarshal:
+	// string for STRING options, float64 for INTEGER/NUMBER options, bool for BOOLEAN options.
+	Value any `json:"value"`
 }
 
 // MemberData is the guild member who triggered the interaction.
 type MemberData struct {
-	User UserData `json:"user"`
+	User        UserData `json:"user"`
+	Permissions string   `json:"permissions"` // decimal permission bitfield string sent by Discord
 }
 
 // UserData is the Discord user who triggered the interaction.
@@ -48,7 +65,7 @@ type UserData struct {
 
 // InteractionResponse is the JSON body sent back to Discord.
 type InteractionResponse struct {
-	Type int                      `json:"type"`
+	Type ResponseType             `json:"type"`
 	Data *InteractionResponseData `json:"data,omitempty"`
 }
 

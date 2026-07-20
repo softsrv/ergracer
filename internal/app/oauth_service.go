@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/softsrv/ergracer/internal/db"
@@ -88,7 +89,7 @@ func (s *OAuthService) HandleDiscordCallback(ctx context.Context, code string, m
 		return TokenResult{}, fmt.Errorf("get user: %w", err)
 	}
 
-	result, err := s.authSvc.IssueTokenPair(ctx, user.ID, user.Email, meta)
+	result, err := s.authSvc.issueTokenPair(ctx, user.ID, user.Email, meta)
 	if err != nil {
 		return TokenResult{}, err
 	}
@@ -113,15 +114,35 @@ func (s *OAuthService) resolveDiscordAccount(ctx context.Context, discordUser oa
 		return uuid.Nil, fmt.Errorf("lookup discord identity: %w", err)
 	}
 
-	// Branch 2: email match
+	// Branch 2: email match — wrap in a transaction so GetUserByEmail and
+	// createOAuthIdentity are atomic. A concurrent DeleteAccount between the two
+	// would otherwise make the insert fail with a foreign-key error, and a
+	// concurrent second login would cause a unique-constraint violation.
 	normalizedEmail := users.NormalizeEmail(discordUser.Email)
 	existingUser, err := s.q.GetUserByEmail(ctx, normalizedEmail)
 	if err == nil {
 		if !discordUser.Verified {
 			return uuid.Nil, ErrDiscordUnverifiedEmail
 		}
-		if linkErr := s.createOAuthIdentity(ctx, s.q, existingUser.ID, discordProvider, discordUser.ID, discordUser.Username); linkErr != nil {
+		tx2, txErr := s.pool.Begin(ctx)
+		if txErr != nil {
+			return uuid.Nil, fmt.Errorf("begin transaction: %w", txErr)
+		}
+		defer tx2.Rollback(ctx) //nolint:errcheck
+
+		qtx2 := s.q.WithTx(tx2)
+		linkErr := s.createOAuthIdentity(ctx, qtx2, existingUser.ID, discordProvider, discordUser.ID, discordUser.Username)
+		if linkErr != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(linkErr, &pgErr) && pgErr.Code == "23505" {
+				// Another concurrent request already created the identity; treat as success.
+				tx2.Rollback(ctx) //nolint:errcheck
+				return existingUser.ID, nil
+			}
 			return uuid.Nil, linkErr
+		}
+		if commitErr := tx2.Commit(ctx); commitErr != nil {
+			return uuid.Nil, fmt.Errorf("commit transaction: %w", commitErr)
 		}
 		return existingUser.ID, nil
 	}

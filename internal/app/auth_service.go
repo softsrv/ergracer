@@ -198,7 +198,7 @@ func (s *AuthService) Login(ctx context.Context, rawEmail, password string, meta
 		slog.Error("reset login attempts", "error", err, "user_id", user.ID)
 	}
 
-	result, err := s.IssueTokenPair(ctx, user.ID, user.Email, meta)
+	result, err := s.issueTokenPair(ctx, user.ID, user.Email, meta)
 	if err != nil {
 		return TokenResult{}, err
 	}
@@ -394,23 +394,35 @@ func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string, meta Dev
 		}
 		return TokenResult{}, fmt.Errorf("get verification code: %w", err)
 	}
-	if record.UsedAt.Valid {
-		return TokenResult{}, ErrTokenUsed
-	}
 	if record.ExpiresAt.Time.Before(time.Now()) {
 		return TokenResult{}, ErrTokenExpired
 	}
-	if err := s.q.MarkVerificationCodeUsed(ctx, record.ID); err != nil {
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return TokenResult{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := s.q.WithTx(tx)
+	if _, err := qtx.MarkVerificationCodeUsed(ctx, record.ID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return TokenResult{}, ErrTokenInvalid
+		}
 		return TokenResult{}, fmt.Errorf("mark code used: %w", err)
 	}
-	if err := s.q.SetEmailVerified(ctx, record.UserID); err != nil {
+	if err := qtx.SetEmailVerified(ctx, record.UserID); err != nil {
 		return TokenResult{}, fmt.Errorf("set email verified: %w", err)
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return TokenResult{}, fmt.Errorf("commit: %w", err)
+	}
+
 	user, err := s.q.GetUserByID(ctx, record.UserID)
 	if err != nil {
 		return TokenResult{}, fmt.Errorf("get user: %w", err)
 	}
-	result, err := s.IssueTokenPair(ctx, user.ID, user.Email, meta)
+	result, err := s.issueTokenPair(ctx, user.ID, user.Email, meta)
 	if err != nil {
 		return TokenResult{}, err
 	}
@@ -441,10 +453,26 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, curr
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	return s.q.UpdatePasswordHash(ctx, db.UpdatePasswordHashParams{
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	qtx := s.q.WithTx(tx)
+	if err := qtx.UpdatePasswordHash(ctx, db.UpdatePasswordHashParams{
 		ID:           userID,
 		PasswordHash: pgtype.Text{String: string(newHash), Valid: true},
-	})
+	}); err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	if err := qtx.RevokeAllUserRefreshTokens(ctx, userID); err != nil {
+		return fmt.Errorf("revoke sessions: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
 }
 
 // SetPassword sets a password for a user who currently has none (e.g. signed up via OAuth).
@@ -501,7 +529,7 @@ func (s *AuthService) ResendVerification(ctx context.Context, userID uuid.UUID) 
 
 // ── private helpers ───────────────────────────────────────────────────────────
 
-func (s *AuthService) IssueTokenPair(
+func (s *AuthService) issueTokenPair(
 	ctx context.Context,
 	userID uuid.UUID,
 	userEmail string,
