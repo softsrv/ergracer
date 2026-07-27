@@ -41,6 +41,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM gcr.io/distroless/static:latest
 
+# APP_ENV controls JSON logging, secure cookies, and debug-detail suppression
+# (see cmd/app/main.go). Bakes a default into the image via --build-arg
+# APP_ENV=production; still overridable at `docker run -e APP_ENV=...`.
+ARG APP_ENV=production
+ENV APP_ENV=${APP_ENV}
+
 WORKDIR /app
 
 # Create non-root user
