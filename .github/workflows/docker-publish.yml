@@ -21,6 +21,18 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      # DaisyUI's standalone .mjs bundles are gitignored (see
+      # `make daisyui-install`) and the Dockerfile COPYs them straight from
+      # the build context rather than fetching them itself, so they must
+      # exist on disk before the build runs — same as a local `make prod`
+      # requires `make daisyui-install` to have been run first.
+      - name: Fetch DaisyUI bundles
+        run: |
+          curl -sLo web/static/css/daisyui.mjs \
+            https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.mjs
+          curl -sLo web/static/css/daisyui-theme.mjs \
+            https://github.com/saadeghi/daisyui/releases/latest/download/daisyui-theme.mjs
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
