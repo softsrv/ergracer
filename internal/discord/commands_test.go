@@ -18,7 +18,7 @@ func TestRegisterCommands(t *testing.T) {
 	)
 
 	testCommands := []ApplicationCommand{
-		{Type: 1, Name: "register", Description: "Request registration for ergracer"},
+		{Type: 1, Name: "register", Description: "Request registration for RowBot"},
 	}
 
 	tests := []struct {

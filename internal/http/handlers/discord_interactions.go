@@ -10,15 +10,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/discord"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/discord"
 )
 
 // discordServicer is the subset of app.DiscordService used by DiscordHandler.
 // Keeping it as a local interface makes the handler independently testable.
 type discordServicer interface {
 	RegisterFromInteraction(ctx context.Context, discordUserID, discordUsername, guildID, guildName string) (db.DiscordRegistration, error)
-	SetChannel(ctx context.Context, guildID, channelID, setByUserID string) (db.DiscordGuildSetting, error)
+	SetChannel(ctx context.Context, guildID, guildName, channelID, setByUserID string) (db.DiscordGuildSetting, error)
 }
 
 // DiscordHandler handles Discord HTTP interaction requests.
@@ -175,7 +175,17 @@ func (h *DiscordHandler) handleSetChannel(r *http.Request, interaction discord.I
 		return discord.EphemeralResponse("This feature is not available right now. Please try again later.")
 	}
 
-	if _, err := h.svc.SetChannel(r.Context(), interaction.GuildID, interaction.ChannelID, interaction.Member.User.ID); err != nil {
+	// Resolve guild name, falling back gracefully if the API call fails.
+	guildName := "unknown server"
+	guildCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if name, err := discord.GetGuildName(guildCtx, h.httpClient, h.botToken, interaction.GuildID); err == nil {
+		guildName = name
+	} else {
+		slog.WarnContext(r.Context(), "discord interactions: get guild name", "guild_id", interaction.GuildID, "error", err)
+	}
+
+	if _, err := h.svc.SetChannel(r.Context(), interaction.GuildID, guildName, interaction.ChannelID, interaction.Member.User.ID); err != nil {
 		slog.ErrorContext(r.Context(), "discord interactions: set channel",
 			"guild_id", interaction.GuildID,
 			"channel_id", interaction.ChannelID,

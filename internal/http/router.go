@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/softsrv/ergracer/internal/app"
-	"github.com/softsrv/ergracer/internal/auth"
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/http/handlers"
-	"github.com/softsrv/ergracer/internal/http/middleware"
-	"github.com/softsrv/ergracer/web"
+	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/auth"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/http/handlers"
+	"github.com/softsrv/rowbot/internal/http/middleware"
+	"github.com/softsrv/rowbot/web"
 )
 
 // RouterConfig holds all dependencies required to build the router.
@@ -22,11 +22,13 @@ type RouterConfig struct {
 	UserSvc                   *app.UserService
 	OAuthSvc                  *app.OAuthService
 	DiscordAuthorizeURL       func(state string) string
+	DiscordSilentAuthorizeURL func(state string) string
 	DiscordLinkAuthorizeURL   func(state string) string
 	DiscordBotInstallURL      string
 	DiscordInteractions       *handlers.DiscordHandler
+	DiscordSvc                *app.DiscordService
+	DiscordBotToken           string
 	Concept2AuthorizeURL      func(state string) string
-	Concept2WebhookSecret     string
 	RowingSvc                 *app.RowingService
 	Renderer                  *handlers.TemplateRenderer
 	JWTSecret                 string
@@ -63,12 +65,13 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	verifiedMW := func(h http.Handler) http.Handler { return authMW(middleware.RequireEmailVerified(h)) }
 
 	if cfg.OAuthSvc != nil {
-		oauthH := handlers.NewOAuthHandler(cfg.OAuthSvc, cfg.DiscordAuthorizeURL, cfg.DiscordLinkAuthorizeURL, cfg.Concept2AuthorizeURL, cfg.Secure, cfg.TrustedProxyCount)
+		oauthH := handlers.NewOAuthHandler(cfg.OAuthSvc, cfg.DiscordAuthorizeURL, cfg.DiscordSilentAuthorizeURL, cfg.DiscordLinkAuthorizeURL, cfg.Concept2AuthorizeURL, cfg.DiscordSvc, cfg.DiscordBotToken, nil, cfg.Secure, cfg.TrustedProxyCount)
 		discordRL := middleware.NewRateLimiter(ctx, 10, 15*time.Minute, ipKey)
 		mux.Handle("GET /auth/discord/login", discordRL.Middleware(http.HandlerFunc(oauthH.DiscordLogin)))
 		mux.Handle("GET /auth/discord/callback", discordRL.Middleware(http.HandlerFunc(oauthH.DiscordCallback)))
 		mux.Handle("GET /auth/discord/link", verifiedMW(http.HandlerFunc(oauthH.DiscordLinkStart)))
 		mux.Handle("GET /auth/discord/link/callback", verifiedMW(http.HandlerFunc(oauthH.DiscordLinkCallback)))
+		mux.Handle("GET /auth/discord/bot-install/callback", verifiedMW(http.HandlerFunc(oauthH.DiscordBotInstallCallback)))
 		mux.Handle("POST /profile/integrations/discord/unlink", verifiedMW(http.HandlerFunc(oauthH.DiscordUnlink)))
 
 		mux.Handle("GET /auth/concept2/link", verifiedMW(http.HandlerFunc(oauthH.Concept2LinkStart)))
@@ -85,8 +88,10 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 		mux.HandleFunc("POST /discord/interactions", cfg.DiscordInteractions.Interactions)
 	}
 
-	// ── Concept2 webhook (public — protected by HMAC-SHA256 signature) ────────
-	webhookH := handlers.NewWebhookHandler(cfg.Concept2WebhookSecret, cfg.RowingSvc)
+	// ── Concept2 webhook (public — trust is structural, not cryptographic; ────
+	// Concept2 does not sign deliveries, so the handler only validates payload
+	// shape and re-fetches real data via our own OAuth token; see webhooks.go)
+	webhookH := handlers.NewWebhookHandler(cfg.RowingSvc)
 	mux.Handle("POST /webhooks/concept2", http.HandlerFunc(webhookH.Concept2))
 
 	// ── Public routes ─────────────────────────────────────────────────────────
@@ -132,12 +137,7 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	mux.Handle("POST /profile/set-password", verifiedMW(http.HandlerFunc(profileH.SetPassword)))
 	mux.Handle("POST /profile/delete", verifiedMW(http.HandlerFunc(profileH.DeleteAccount)))
 
-	mux.Handle("GET /dashboard", verifiedMW(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, _ := middleware.UserFromContext(r.Context())
-		cfg.Renderer.Page(w, http.StatusOK, "dashboard.html", map[string]any{
-			"User": user,
-		})
-	})))
+	mux.Handle("GET /dashboard", verifiedMW(http.HandlerFunc(profileH.DashboardPage)))
 
 	// ── Global middleware chain ───────────────────────────────────────────────
 	// BodyLimit is innermost so it wraps r.Body before any handler reads it.

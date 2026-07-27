@@ -19,15 +19,15 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/softsrv/ergracer/internal/app"
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/discord"
-	"github.com/softsrv/ergracer/internal/email"
-	internalhttp "github.com/softsrv/ergracer/internal/http"
-	"github.com/softsrv/ergracer/internal/http/handlers"
-	oauthpkg "github.com/softsrv/ergracer/internal/oauth"
-	"github.com/softsrv/ergracer/internal/secrets"
-	"github.com/softsrv/ergracer/web"
+	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/discord"
+	"github.com/softsrv/rowbot/internal/email"
+	internalhttp "github.com/softsrv/rowbot/internal/http"
+	"github.com/softsrv/rowbot/internal/http/handlers"
+	oauthpkg "github.com/softsrv/rowbot/internal/oauth"
+	"github.com/softsrv/rowbot/internal/secrets"
+	"github.com/softsrv/rowbot/web"
 )
 
 func main() {
@@ -97,6 +97,7 @@ func main() {
 
 	var discordClient *oauthpkg.DiscordClient
 	var discordAuthorizeURL func(string) string
+	var discordSilentAuthorizeURL func(string) string
 	var discordLinkAuthorizeURL func(string) string
 	var discordBotInstallURL string
 	if cfg.DiscordClientID != "" {
@@ -107,7 +108,15 @@ func main() {
 			nil,
 		)
 		discordAuthorizeURL = discordClient.AuthorizeURL
-		discordBotInstallURL = discordClient.BotInstallURL(cfg.DiscordBotPermissions)
+		discordSilentAuthorizeURL = discordClient.SilentAuthorizeURL
+
+		discordBotInstallClient := oauthpkg.NewDiscordClient(
+			cfg.DiscordClientID,
+			cfg.DiscordClientSecret,
+			baseURL+"/auth/discord/bot-install/callback",
+			nil,
+		)
+		discordBotInstallURL = discordBotInstallClient.BotInstallURL(cfg.DiscordBotPermissions)
 
 		discordLinkClient := oauthpkg.NewDiscordClient(
 			cfg.DiscordClientID,
@@ -192,22 +201,24 @@ func main() {
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	handler := internalhttp.NewRouter(cleanupCtx, internalhttp.RouterConfig{
-		Queries:                 queries,
-		Pool:                    pool,
-		AuthSvc:                 authSvc,
-		UserSvc:                 userSvc,
-		OAuthSvc:                oauthSvc,
-		DiscordAuthorizeURL:     discordAuthorizeURL,
-		DiscordLinkAuthorizeURL: discordLinkAuthorizeURL,
-		DiscordBotInstallURL:    discordBotInstallURL,
-		DiscordInteractions:     discordInteractionsH,
-		Concept2AuthorizeURL:    concept2AuthorizeURL,
-		Concept2WebhookSecret:   cfg.Concept2WebhookSecret,
-		RowingSvc:               rowingSvc,
-		Renderer:                renderer,
-		JWTSecret:               cfg.JWTSecret,
-		Secure:                  cfg.AppEnv == "production",
-		TrustedProxyCount:       cfg.TrustedProxyCount,
+		Queries:                   queries,
+		Pool:                      pool,
+		AuthSvc:                   authSvc,
+		UserSvc:                   userSvc,
+		OAuthSvc:                  oauthSvc,
+		DiscordAuthorizeURL:       discordAuthorizeURL,
+		DiscordSilentAuthorizeURL: discordSilentAuthorizeURL,
+		DiscordLinkAuthorizeURL:   discordLinkAuthorizeURL,
+		DiscordBotInstallURL:      discordBotInstallURL,
+		DiscordInteractions:       discordInteractionsH,
+		DiscordSvc:                discordSvc,
+		DiscordBotToken:           cfg.DiscordBotToken,
+		Concept2AuthorizeURL:      concept2AuthorizeURL,
+		RowingSvc:                 rowingSvc,
+		Renderer:                  renderer,
+		JWTSecret:                 cfg.JWTSecret,
+		Secure:                    cfg.AppEnv == "production",
+		TrustedProxyCount:         cfg.TrustedProxyCount,
 	})
 
 	srv := &http.Server{
@@ -257,24 +268,24 @@ func main() {
 // ── Config ────────────────────────────────────────────────────────────────────
 
 type config struct {
-	AppEnv             string
-	Port               string
-	AppBaseURL         string
-	DatabaseURL        string
-	DBMaxConns         int
-	DBMinConns         int
-	TrustedProxyCount  int
-	JWTSecret          string
-	JWTAccessExpiry    time.Duration
-	RefreshTokenExpiry time.Duration
-	BCryptCost         int
-	PasswordMinLen     int
-	SMTPHost           string
-	SMTPPort           string
-	SMTPUsername       string
-	SMTPPassword       string
-	SMTPFromEmail      string
-	SMTPFromName       string
+	AppEnv                string
+	Port                  string
+	AppBaseURL            string
+	DatabaseURL           string
+	DBMaxConns            int
+	DBMinConns            int
+	TrustedProxyCount     int
+	JWTSecret             string
+	JWTAccessExpiry       time.Duration
+	RefreshTokenExpiry    time.Duration
+	BCryptCost            int
+	PasswordMinLen        int
+	SMTPHost              string
+	SMTPPort              string
+	SMTPUsername          string
+	SMTPPassword          string
+	SMTPFromEmail         string
+	SMTPFromName          string
 	OAuthTokenEncKey      []byte
 	DiscordClientID       string
 	DiscordClientSecret   string
@@ -282,10 +293,9 @@ type config struct {
 	DiscordPublicKey      string // hex-encoded Ed25519 public key
 	DiscordApplicationID  string
 	DiscordBotToken       string
-	Concept2ClientID        string
-	Concept2ClientSecret    string
-	Concept2APIBase         string
-	Concept2WebhookSecret   string
+	Concept2ClientID      string
+	Concept2ClientSecret  string
+	Concept2APIBase       string
 }
 
 func mustLoadConfig() config {
@@ -300,7 +310,7 @@ func mustLoadConfig() config {
 		SMTPUsername:  os.Getenv("SMTP_USERNAME"),
 		SMTPPassword:  os.Getenv("SMTP_PASSWORD"),
 		SMTPFromEmail: mustGetEnv("SMTP_FROM_EMAIL"),
-		SMTPFromName:  getEnvOrDefault("SMTP_FROM_NAME", "App"),
+		SMTPFromName:  getEnvOrDefault("SMTP_FROM_NAME", "RowBot"),
 	}
 
 	if len(cfg.JWTSecret) < 32 {
@@ -369,7 +379,6 @@ func mustLoadConfig() config {
 	cfg.Concept2ClientID = os.Getenv("CONCEPT2_CLIENT_ID")
 	cfg.Concept2ClientSecret = os.Getenv("CONCEPT2_CLIENT_SECRET")
 	cfg.Concept2APIBase = getEnvOrDefault("CONCEPT2_API_BASE", "https://log.concept2.com")
-	cfg.Concept2WebhookSecret = os.Getenv("CONCEPT2_WEBHOOK_SECRET")
 
 	return cfg
 }

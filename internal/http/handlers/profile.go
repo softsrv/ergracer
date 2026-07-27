@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/ergracer/internal/app"
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/http/middleware"
+	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/http/middleware"
 )
 
 type profileAuthServicer interface {
@@ -57,6 +57,29 @@ func (h *ProfileHandler) ProfilePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	data := map[string]any{"User": user}
+	h.renderer.Page(w, http.StatusOK, "profile.html", data)
+}
+
+// DashboardPage renders the main dashboard, including the Integrations
+// section — connecting Discord/Concept2 is the most important setup step for
+// the app to actually do anything, so it lives on the landing page rather
+// than being tucked away in profile settings.
+func (h *ProfileHandler) DashboardPage(w http.ResponseWriter, r *http.Request) {
+	user, ok := middleware.UserFromContext(r.Context())
+	if !ok {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	data := h.integrationsData(r.Context(), user)
+	h.renderer.Page(w, http.StatusOK, "dashboard.html", data)
+}
+
+// integrationsData builds the template data describing the user's
+// Discord/Concept2 connection status, shared by any page that renders the
+// Integrations section.
+func (h *ProfileHandler) integrationsData(ctx context.Context, user db.User) map[string]any {
 	data := map[string]any{
 		"User":                 user,
 		"DiscordLinked":        false,
@@ -73,21 +96,21 @@ func (h *ProfileHandler) ProfilePage(w http.ResponseWriter, r *http.Request) {
 		data["Concept2Enabled"] = h.oauth.IsConcept2Enabled()
 
 		if h.oauth.IsDiscordEnabled() {
-			if identity, err := h.oauth.GetDiscordIdentity(r.Context(), user.ID); err == nil {
+			if identity, err := h.oauth.GetDiscordIdentity(ctx, user.ID); err == nil {
 				data["DiscordLinked"] = true
 				data["DiscordUsername"] = identity.ProviderUsername.String
 			}
 		}
 
 		if h.oauth.IsConcept2Enabled() {
-			if identity, err := h.oauth.GetConcept2Identity(r.Context(), user.ID); err == nil {
+			if identity, err := h.oauth.GetConcept2Identity(ctx, user.ID); err == nil {
 				data["Concept2Linked"] = true
 				data["Concept2Username"] = identity.ProviderUsername.String
 			}
 		}
 	}
 
-	h.renderer.Page(w, http.StatusOK, "profile.html", data)
+	return data
 }
 
 // ChangePassword handles password change form submission.

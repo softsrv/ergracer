@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/softsrv/ergracer/internal/auth"
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/email"
-	"github.com/softsrv/ergracer/internal/users"
+	"github.com/softsrv/rowbot/internal/auth"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/email"
+	"github.com/softsrv/rowbot/internal/users"
 )
 
 const (

@@ -1,35 +1,36 @@
 package concept2
 
-import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-)
-
-// VerifySignature reports whether sigHeader is the valid HMAC-SHA256 signature
-// of body using secret as the key. sigHeader must be a hex-encoded digest.
+// Concept2Payload is the top-level webhook body from Concept2, confirmed
+// against https://log.concept2.com/developers/documentation/#header-create-or-update-result:
 //
-// An empty secret always returns false — an unconfigured secret must never
-// pass validation.
-func VerifySignature(secret string, body []byte, sigHeader string) bool {
-	if secret == "" {
-		return false
-	}
-	sig, err := hex.DecodeString(sigHeader)
-	if err != nil {
-		return false
-	}
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(body)
-	expected := mac.Sum(nil)
-	return hmac.Equal(expected, sig)
+//	result-added / result-updated:
+//	  {"data": {"type": "result-added", "result": {"id": 3, "user_id": 1, ...}}}
+//	result-deleted:
+//	  {"data": {"type": "result-deleted", "result_id": 745}}
+//
+// Concept2 does not document any subscription-verification/challenge-echo
+// mechanism anywhere on that page — an earlier version of this struct had a
+// Challenge field for that, which was never real (confirmed absent on two
+// separate documentation fetches) and has been removed.
+type Concept2Payload struct {
+	Data Concept2PayloadData `json:"data"`
 }
 
-// Concept2Payload is the top-level webhook body from Concept2.
-type Concept2Payload struct {
-	Type      string `json:"type"`
-	UserID    int64  `json:"user_id"`
-	ResultID  int64  `json:"result_id"`
-	Timestamp string `json:"timestamp"`
-	Challenge string `json:"challenge,omitempty"` // present during subscription verification
+// Concept2PayloadData is the "data" wrapper object within a webhook delivery.
+type Concept2PayloadData struct {
+	// Type is the event type: "result-added", "result-updated", or
+	// "result-deleted".
+	Type string `json:"type"`
+
+	// Result is populated for result-added/result-updated events. Only its
+	// ID and UserID fields are relied on — RowingService.ProcessResult always
+	// re-fetches the authoritative result via the Concept2 API rather than
+	// trusting whatever subset of fields the webhook happens to embed here,
+	// so the rest of Result's fields are along for the ride but unused by
+	// this path.
+	Result *Result `json:"result,omitempty"`
+
+	// ResultID is populated for result-deleted events (a bare ID at the
+	// data level, not nested under a result object).
+	ResultID int64 `json:"result_id,omitempty"`
 }

@@ -51,24 +51,53 @@ func NewDiscordClient(clientID, clientSecret, redirectURI string, httpClient *ht
 }
 
 // BotInstallURL returns the Discord OAuth2 URL that lets a server admin add
-// the application (bot) to their server.
+// the application (bot) to their server. Including redirect_uri and
+// response_type=code alongside scope=bot triggers Discord's "extended bot
+// authorization" flow: on redirect, Discord appends guild_id (and
+// permissions) as querystring parameters, which is how we capture which
+// guild the bot was just installed into. We don't exchange the returned code
+// for anything — the callback only reads guild_id off the redirect.
+// https://docs.discord.com/developers/topics/oauth2
 func (c *DiscordClient) BotInstallURL(permissions int) string {
 	params := url.Values{
-		"client_id":   {c.clientID},
-		"scope":       {"bot applications.commands"},
-		"permissions": {strconv.Itoa(permissions)},
+		"client_id":     {c.clientID},
+		"scope":         {"bot applications.commands"},
+		"permissions":   {strconv.Itoa(permissions)},
+		"redirect_uri":  {c.redirectURI},
+		"response_type": {"code"},
 	}
 	return discordAuthorizeURL + "?" + params.Encode()
 }
 
-// AuthorizeURL returns the Discord OAuth2 authorization URL for the given state.
+// AuthorizeURL returns the Discord OAuth2 authorization URL for the given
+// state. Discord always shows its authorization screen for this URL, even if
+// the user has already authorized this application with these scopes before.
 func (c *DiscordClient) AuthorizeURL(state string) string {
+	return c.authorizeURL(state, "")
+}
+
+// SilentAuthorizeURL returns a Discord OAuth2 authorization URL with
+// prompt=none, asking Discord to skip the authorization screen and redirect
+// straight back — with either a code or an error — if the user has already
+// authorized this application with these scopes. Because prompt=none can't
+// show any UI, a user who hasn't authorized yet (or revoked access) gets
+// redirected back with an error instead of a fresh consent screen, so
+// callers must be ready to fall back to AuthorizeURL when that happens.
+// https://docs.discord.com/developers/topics/oauth2
+func (c *DiscordClient) SilentAuthorizeURL(state string) string {
+	return c.authorizeURL(state, "none")
+}
+
+func (c *DiscordClient) authorizeURL(state, prompt string) string {
 	params := url.Values{
 		"client_id":     {c.clientID},
 		"redirect_uri":  {c.redirectURI},
 		"response_type": {"code"},
 		"scope":         {"identify email"},
 		"state":         {state},
+	}
+	if prompt != "" {
+		params.Set("prompt", prompt)
 	}
 	return discordAuthorizeURL + "?" + params.Encode()
 }

@@ -21,6 +21,11 @@ type TokenPair struct {
 	ExpiresAt   time.Time
 }
 
+// tokenIssuer is used as both the issuer and audience claim on every JWT
+// this app issues and validates. Defined once so the issuing and validating
+// sides can never drift out of sync.
+const tokenIssuer = "RowBot"
+
 var (
 	ErrTokenExpired = errors.New("token expired")
 	ErrTokenInvalid = errors.New("token invalid")
@@ -35,8 +40,8 @@ func IssueAccessToken(userID uuid.UUID, email, secret string, expiry time.Durati
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID.String(),
-			Issuer:    "ergracer",
-			Audience:  jwt.ClaimStrings{"ergracer"},
+			Issuer:    tokenIssuer,
+			Audience:  jwt.ClaimStrings{tokenIssuer},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(exp),
 		},
@@ -58,7 +63,7 @@ func ValidateAccessToken(tokenStr, secret string) (*Claims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return []byte(secret), nil
-	}, jwt.WithIssuer("ergracer"), jwt.WithAudience("ergracer"))
+	}, jwt.WithIssuer(tokenIssuer), jwt.WithAudience(tokenIssuer))
 
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {

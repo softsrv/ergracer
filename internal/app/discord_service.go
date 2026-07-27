@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/rowbot/internal/db"
 )
 
 // ErrMissingGuildChannel is returned by SetChannel when any required identifier
@@ -35,6 +35,13 @@ func NewDiscordService(q *db.Queries) *DiscordService {
 // a repeated /register in the same server is an idempotent upsert that refreshes
 // the display name and guild name.
 func (s *DiscordService) RegisterFromInteraction(ctx context.Context, discordUserID, discordUsername, guildID, guildName string) (db.DiscordRegistration, error) {
+	if err := s.RecordGuildSeen(ctx, guildID, guildName); err != nil {
+		slog.WarnContext(ctx, "discord_service: record guild seen failed, proceeding with registration",
+			"guild_id", guildID,
+			"error", err,
+		)
+	}
+
 	// Look up whether this Discord user has already linked a site account via
 	// OAuth. We fail open: a DB error here must not prevent the registration.
 	var linkedUserID pgtype.UUID
@@ -90,9 +97,16 @@ func (s *DiscordService) RegisterFromInteraction(ctx context.Context, discordUse
 // a guild. The record is keyed on guild_id (unique); a repeated call updates the
 // stored channel in place. guildID, channelID, and setByUserID must all be
 // non-empty or ErrMissingGuildChannel is returned.
-func (s *DiscordService) SetChannel(ctx context.Context, guildID, channelID, setByUserID string) (db.DiscordGuildSetting, error) {
+func (s *DiscordService) SetChannel(ctx context.Context, guildID, guildName, channelID, setByUserID string) (db.DiscordGuildSetting, error) {
 	if guildID == "" || channelID == "" || setByUserID == "" {
 		return db.DiscordGuildSetting{}, ErrMissingGuildChannel
+	}
+
+	if err := s.RecordGuildSeen(ctx, guildID, guildName); err != nil {
+		slog.WarnContext(ctx, "discord_service: record guild seen failed, proceeding with set channel",
+			"guild_id", guildID,
+			"error", err,
+		)
 	}
 
 	id, err := uuid.NewV7()
@@ -111,4 +125,26 @@ func (s *DiscordService) SetChannel(ctx context.Context, guildID, channelID, set
 	}
 
 	return setting, nil
+}
+
+// RecordGuildSeen upserts a guild's presence/name whenever we observe it —
+// on bot install, or opportunistically from any slash-command interaction.
+// There's no polling of Discord's guild list (this app scales to zero when
+// idle), so this event-driven upsert is the only mechanism keeping
+// discord_guilds current; call it liberally rather than trying to be clever
+// about only calling it "when needed."
+func (s *DiscordService) RecordGuildSeen(ctx context.Context, guildID, guildName string) error {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("generate discord guild id: %w", err)
+	}
+	_, err = s.q.UpsertDiscordGuild(ctx, db.UpsertDiscordGuildParams{
+		ID:        id,
+		GuildID:   guildID,
+		GuildName: guildName,
+	})
+	if err != nil {
+		return fmt.Errorf("upsert discord guild: %w", err)
+	}
+	return nil
 }

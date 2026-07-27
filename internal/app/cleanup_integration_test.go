@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/softsrv/ergracer/internal/app"
-	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/db"
 )
 
 // seedUser inserts a minimal user row and registers a t.Cleanup that cascade-deletes

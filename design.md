@@ -1,4 +1,4 @@
-# ergracer — Design Specification
+# RowBot — Design Specification
 
 **Status:** Draft for implementation
 **Audience:** Implementing developer
@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-`ergracer` is the rebrand and feature expansion of the existing Go authentication
+`RowBot` is the rebrand and feature expansion of the existing Go authentication
 starter (currently module `github.com/softsrv/starter`). The application becomes
 a dual-purpose backend: a **web application** (HTMX server-rendered) and a
 **Discord application** (slash commands via HTTP interactions), plus an
@@ -40,7 +40,7 @@ The new work must respect the current design, summarized from `CLAUDE.md`:
 
 ---
 
-## 2. Rename: `starter` → `ergracer`
+## 2. Rename: `starter` → `RowBot`
 
 **Goal:** Remove all "starter" naming. This section specifies the change; no code
 is changed by this document.
@@ -50,7 +50,7 @@ is changed by this document.
 Change the module path in `go.mod`:
 
 ```
-module github.com/softsrv/starter   →   module github.com/softsrv/ergracer
+module github.com/softsrv/starter   →   module github.com/softsrv/rowbot
 ```
 
 Every internal import (`github.com/softsrv/starter/internal/...`, `.../web`)
@@ -60,7 +60,7 @@ file (≈24 files, including all `_test.go`). Recommended mechanical approach:
 ```bash
 # from repo root
 grep -rl 'softsrv/starter' --include='*.go' . \
-  | xargs sed -i '' 's|github.com/softsrv/starter|github.com/softsrv/ergracer|g'
+  | xargs sed -i '' 's|github.com/softsrv/starter|github.com/softsrv/rowbot|g'
 go mod tidy
 make fmt && make build && make test
 ```
@@ -70,7 +70,7 @@ make fmt && make build && make test
 Audit and update human-facing/string references to "starter" / "MyApp":
 
 - `README.md`, `docs/*.md` — project name and examples.
-- `.env.example` — `SMTP_FROM_NAME=MyApp` → `SMTP_FROM_NAME=ergracer` (this string is used as `AppName` in emails).
+- `.env.example` — `SMTP_FROM_NAME=MyApp` → `SMTP_FROM_NAME=RowBot` (this string is used as `AppName` in emails).
 - `Makefile` / `Dockerfile` — image names or binary names if they reference "starter".
 - `.air.toml` — build output names if applicable.
 - Email templates in `internal/email/templates.go` if any contain the literal app name (they take `AppName` as a parameter, so likely no change beyond the env value).
@@ -116,7 +116,7 @@ CREATE INDEX IF NOT EXISTS idx_oauth_identities_user ON oauth_identities (user_i
 
 Rationale for the two unique constraints:
 
-- `(provider, provider_user_id)` prevents two ergracer users from claiming the same Discord/Concept2 account.
+- `(provider, provider_user_id)` prevents two RowBot users from claiming the same Discord/Concept2 account.
 - `(user_id, provider)` enforces "one Discord link per user".
 
 ### 3.2 New table: `oauth_tokens`
@@ -209,7 +209,7 @@ email/password.
    - Exchanges `code` for tokens at Discord's token endpoint (`POST /oauth2/token`).
    - Calls Discord `GET /users/@me` with the access token → `{ id, username, email, verified }`.
    - Resolves the user (see §4.2).
-   - Issues the normal ergracer token pair (`AuthService.issueTokenPair`) and sets `access_token` + `refresh_token` cookies — identical to the email/password success path.
+   - Issues the normal RowBot token pair (`AuthService.issueTokenPair`) and sets `access_token` + `refresh_token` cookies — identical to the email/password success path.
    - Redirects to `/dashboard`.
 
 ### 4.2 Account resolution logic
@@ -270,7 +270,7 @@ user is **already authenticated**:
 1. From `/profile`, **Connect Discord** → `GET /auth/discord/link` (this route is behind `verifiedMW`).
 2. Same authorize redirect as §4, but the `state` cookie also encodes intent = "link" (e.g. store `oauth_state` plus an `oauth_intent` cookie, or use distinct callback paths).
 3. Callback (`GET /auth/discord/callback`, or a separate `/auth/discord/link/callback`) detects link intent and the current user from the `access_token` cookie:
-   - If the Discord account is already linked to **another** user → reject with "This Discord account is already linked to a different ergracer account."
+   - If the Discord account is already linked to **another** user → reject with "This Discord account is already linked to a different RowBot account."
    - Otherwise create the `oauth_identities` row for the current user. Do **not** issue new tokens (already logged in). Redirect back to `/profile` with a success flash.
 
 Design recommendation: use **separate callback paths** (`/auth/discord/callback`
@@ -349,7 +349,7 @@ Connect / show linked username + Disconnect. Same HTMX swap pattern.
 
 ## 7. Feature: Add the application to your server
 
-When a user has linked Discord, show a button that adds the ergracer Discord
+When a user has linked Discord, show a button that adds the RowBot Discord
 application (bot) to a Discord server they manage.
 
 ### 7.1 Mechanism
@@ -498,7 +498,7 @@ type ApplicationCommand struct {
 // Commands is the authoritative list of slash commands this application exposes.
 // Add new commands here; they are registered on every startup.
 var Commands = []ApplicationCommand{
-    {Type: 1, Name: "register", Description: "Request registration for ergracer"},
+    {Type: 1, Name: "register", Description: "Request registration for RowBot"},
 }
 
 // RegisterCommands bulk-overwrites global application commands via Discord's REST
@@ -614,18 +614,55 @@ POST /webhooks/concept2   → webhookH.Concept2   (PUBLIC, payload-validated)
 Public — cannot use the JWT/`authMW` flow because Concept2's servers, not a
 browser, call it. Must be added to the public section of `router.go`.
 
-### 10.2 Validation — reject early, reject hard
+### 10.2 Payload shape (confirmed against the docs)
 
-Concept2 webhooks support a verification mechanism (a shared secret / signature
-and/or a subscription verification handshake — confirm exact scheme against the
-Concept2 webhook docs). The handler must, **in order, failing closed at the first
-problem with a 4xx and no side effects**:
+Confirmed directly against
+https://log.concept2.com/developers/documentation/#header-create-or-update-result
+(fetched and cross-checked twice). Everything is nested under a top-level
+`data` object — there is no flat `type`/`user_id`/`result_id`/`timestamp` at
+the root, contrary to an earlier version of this section and of
+`concept2.Concept2Payload`, which guessed at a flat shape that was never
+real and silently failed to parse a genuine Concept2 delivery as a result.
+
+`result-added` / `result-updated`:
+
+```json
+{
+  "data": {
+    "type": "result-added",
+    "result": { "id": 3, "user_id": 1, "date": "2013-06-21 00:00:00", "...": "..." }
+  }
+}
+```
+
+`result-deleted` (bare `result_id`, no nested `result` object):
+
+```json
+{ "data": { "type": "result-deleted", "result_id": 745 } }
+```
+
+**Correction — no subscription-verification/challenge handshake.** An earlier
+version of this section described echoing a verification challenge (and the
+handler briefly implemented one). This was never documented on the page above
+— confirmed absent on two separate fetches — and has been removed, the same
+way the previously-assumed HMAC/signature verification for this endpoint was
+found to be fabricated and removed. There is no `CONCEPT2_WEBHOOK_SECRET`, no
+HMAC check, and no challenge echo. Trust is established structurally instead:
+the payload must parse into the expected shape, and the delivered
+`result_id`/`user_id` are only ever used to trigger a fetch of the real result
+from the Concept2 API using our own stored OAuth token (§6,
+`RowingService.ProcessResult`) — the webhook body itself is never trusted as a
+source of result data, so a spoofed delivery can at most re-trigger a repost
+of a result the attacker already knows the ID of.
+
+### 10.2.1 Validation — reject early, reject hard
+
+The handler must, **in order, failing closed at the first problem with a 4xx
+and no side effects**:
 
 1. **Method & content-type** — must be `POST` with `application/json`; else 415/405.
 2. **Size** — body already capped by `BodyLimit` (1 MiB); webhook bodies are small. Reject anything that fails to read within the limit.
-3. **Signature / shared secret** — verify the Concept2-provided signature header against `CONCEPT2_WEBHOOK_SECRET` (HMAC over the raw body, or whatever Concept2 specifies). Read the raw body first (like §8.3) so the exact bytes are verified. Reject with 401 on mismatch. **No logging of the raw body on failure.**
-4. **Subscription verification handshake** — if Concept2 sends a verification/challenge request when the subscription is created (some providers do `GET ?challenge=` or a typed POST), echo the challenge as required. Specify a branch for this.
-5. **Schema** — unmarshal into a strict typed struct; reject (400) on unknown-critical-field absence or type mismatch. Use `json.Decoder` with `DisallowUnknownFields` only if Concept2's payload is stable; otherwise validate required fields explicitly (`type`, `result_id`, `user_id`, etc.).
+3. **Schema** — unmarshal into `concept2.Concept2Payload` (the nested `data`/`result` shape above); reject (400) on a missing/empty `data.type`, and on a `result-added` event whose nested `result` object is absent (guard against the resulting nil pointer rather than assuming it's always present).
 
 Only after all checks pass is the payload considered "good."
 
@@ -635,24 +672,22 @@ For now: **log it to the console in a readable way** and return `200 OK` quickly
 
 ```go
 slog.Info("concept2 webhook received",
-    "event_type", payload.Type,
-    "concept2_user_id", payload.UserID,
-    "result_id", payload.ResultID,
-    "logged_at", payload.Timestamp,
+    "event_type", payload.Data.Type,
+    "concept2_user_id", payload.Data.Result.UserID,
+    "result_id", payload.Data.Result.ID,
 )
 ```
 
 Respond `200` promptly (webhook senders retry on non-2xx / timeouts). Do **not**
 do heavy work synchronously; even now, keep the handler fast. (Future: look up the
-`oauth_identities` row by `('concept2', payload.UserID)`, refresh the stored
-token via §6.2, and fetch result detail — specify as a TODO, not built now.)
+`oauth_identities` row by `('concept2', payload.Data.Result.UserID)`, refresh
+the stored token via §6.2, and fetch result detail — specify as a TODO, not
+built now.)
 
 ### 10.4 Backend structure
 
 - New `internal/http/handlers/webhooks.go` (`WebhookHandler.Concept2`).
-- A `internal/concept2/webhook.go` for the typed payload struct(s) and
-  `VerifySignature(secret string, body []byte, sigHeader string) bool`.
-- Config / `.env.example`: `CONCEPT2_WEBHOOK_SECRET`.
+- A `internal/concept2/webhook.go` for the typed payload struct(s).
 
 ### 10.5 Frontend
 
@@ -671,7 +706,7 @@ New routes, grouped by protection level, added to `internal/http/router.go`.
 | `GET /auth/discord/login`    | `oauthH.DiscordLogin`    | rate limit (IP), `state` cookie |
 | `GET /auth/discord/callback` | `oauthH.DiscordCallback` | `state` match                   |
 | `POST /discord/interactions` | `discordH.Interactions`  | Ed25519 signature               |
-| `POST /webhooks/concept2`    | `webhookH.Concept2`      | shared-secret/HMAC signature    |
+| `POST /webhooks/concept2`    | `webhookH.Concept2`      | payload-shape validation only   |
 
 **Protected (`verifiedMW`):**
 
@@ -710,8 +745,10 @@ CONCEPT2_CLIENT_ID=
 CONCEPT2_CLIENT_SECRET=
 CONCEPT2_REDIRECT_URI=http://localhost:8080/auth/concept2/link/callback
 CONCEPT2_API_BASE=https://log.concept2.com
-CONCEPT2_WEBHOOK_SECRET=
 ```
+
+(No `CONCEPT2_WEBHOOK_SECRET` — Concept2 doesn't sign or otherwise authenticate
+webhook deliveries; see §10.2.)
 
 All loaded in `cmd/app/main.go`'s `mustLoadConfig` (use `mustGetEnv` for values
 the app cannot run without in the environments that enable the feature; consider
@@ -727,8 +764,12 @@ stdlib:
 
 - OAuth flows: `net/http` for redirects and token exchange; `encoding/json`.
 - Discord signature: `crypto/ed25519`, `encoding/hex`.
-- Concept2 webhook signature: `crypto/hmac`, `crypto/sha256`.
 - Token encryption: `crypto/aes`, `crypto/cipher`.
+
+Concept2 does not sign or otherwise authenticate its webhook deliveries (see
+§10.2) — there is no HMAC verification for that endpoint, so no
+`crypto/hmac`/`crypto/sha256` dependency is needed for it. An earlier version
+of this section listed one, based on a mistaken assumption; removed.
 
 **Optional**, only if the developer prefers ergonomics over stdlib (must be
 justified per `CLAUDE.md` before adding):
@@ -744,9 +785,9 @@ No Discord Gateway library is needed given the HTTP-interactions transport.
 Follow existing patterns (`*_test.go` unit tests; `-tags integration` with
 testcontainers for DB-touching paths).
 
-- **Unit:** Discord signature verification (valid, tampered body, bad timestamp, malformed header); Concept2 HMAC verification; token encrypt/decrypt round-trip; OAuth state generation/compare; account-resolution branch logic in `OAuthService` with a faked OAuth client.
+- **Unit:** Discord signature verification (valid, tampered body, bad timestamp, malformed header); token encrypt/decrypt round-trip; OAuth state generation/compare; account-resolution branch logic in `OAuthService` with a faked OAuth client.
 - **Integration (DB):** create/link/unlink identities; unique-constraint enforcement (same Discord account can't link to two users); unlink guard when no password is set; Discord-login provisioning of a brand-new user.
-- **Handler:** `/discord/interactions` PING→PONG and `/register`→static reply (with a valid signature fixture); `/webhooks/concept2` happy path logs and returns 200, bad signature returns 401, malformed JSON returns 400.
+- **Handler:** `/discord/interactions` PING→PONG and `/register`→static reply (with a valid signature fixture); `/webhooks/concept2` covering: correctly-shaped `result-added` → 200 and `ProcessResult` called; `result-updated`/`result-deleted` → 200, `ProcessResult` not called; malformed JSON → 400; empty/wrong-shaped `data.type` → 400; wrong content-type → 415. (There is no signature to test against — Concept2 doesn't sign webhook deliveries; see §10.2.)
 - **Mock external HTTP:** wrap Discord/Concept2 HTTP calls behind interfaces so tests inject a fake transport rather than calling real endpoints.
 
 ---

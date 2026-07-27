@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/rowbot/internal/db"
 )
 
 // UserService handles user-related business logic.

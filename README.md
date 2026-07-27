@@ -1,3 +1,3 @@
-# ergracer
+# RowBot
 
-A Go web application built on the softsrv template. Developed iteratively from an architecture document, using html/template, HTMX, Tailwind/DaisyUI, pgx/v5, sqlc, and JWT-based auth. The stack is optimized for simplicity and speed.
+A Discord bot that posts your Concept2 Logbook results (rowing, skiing, biking, and more) to your Discord server as a generated result card, whenever you finish a workout. Built with Go, html/template, HTMX, Tailwind/DaisyUI, pgx/v5, sqlc, and JWT-based auth.

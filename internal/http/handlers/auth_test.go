@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/ergracer/internal/app"
-	"github.com/softsrv/ergracer/internal/auth"
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/http/handlers"
-	"github.com/softsrv/ergracer/internal/http/middleware"
+	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/auth"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/http/handlers"
+	"github.com/softsrv/rowbot/internal/http/middleware"
 )
 
 // stubAuthService implements the (unexported) authServicer interface that

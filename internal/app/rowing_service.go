@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,11 +13,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/softsrv/ergracer/internal/concept2"
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/discord"
-	"github.com/softsrv/ergracer/internal/oauth"
-	"github.com/softsrv/ergracer/internal/secrets"
+	"github.com/softsrv/rowbot/internal/concept2"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/discord"
+	"github.com/softsrv/rowbot/internal/oauth"
+	"github.com/softsrv/rowbot/internal/render"
+	"github.com/softsrv/rowbot/internal/secrets"
 )
 
 // RowingService processes incoming Concept2 workout results and posts them to
@@ -52,7 +52,7 @@ func NewRowingService(q *db.Queries, concept2Client *oauth.Concept2Client, encry
 //  2. Retrieve and decrypt the stored OAuth token (refreshing if expired).
 //  3. Fetch the result from the Concept2 API.
 //  4. Find all Discord guilds the user is registered in.
-//  5. Post a formatted embed to each guild's configured reporting channel.
+//  5. Post a rendered result image to each guild's configured reporting channel.
 //
 // Business-logic discards (no linked user, no token, no Discord registrations,
 // no guild settings) return nil — only unexpected failures return errors.
@@ -146,7 +146,7 @@ func (s *RowingService) ProcessResult(ctx context.Context, concept2UserID int64,
 		return nil
 	}
 
-	// 7. For each registration, look up guild settings and send the embed.
+	// 7. For each registration, look up guild settings and send the image.
 	for _, reg := range registrations {
 		settings, settingsErr := s.q.GetGuildSettings(ctx, reg.GuildID)
 		if settingsErr != nil {
@@ -163,15 +163,15 @@ func (s *RowingService) ProcessResult(ctx context.Context, concept2UserID int64,
 			continue
 		}
 
-		if sendErr := s.sendResultEmbed(ctx, result, settings.ReportChannelID); sendErr != nil {
-			slog.Error("concept2 result: send discord embed failed",
+		if sendErr := s.sendResultImage(ctx, result, reg.DiscordUserID, settings.ReportChannelID); sendErr != nil {
+			slog.Error("concept2 result: send discord image failed",
 				"guild_id", reg.GuildID,
 				"channel_id", settings.ReportChannelID,
 				"result_id", resultID,
 				"error", sendErr,
 			)
 		} else {
-			slog.Info("concept2 result: discord embed sent",
+			slog.Info("concept2 result: discord image sent",
 				"guild_id", reg.GuildID,
 				"channel_id", settings.ReportChannelID,
 				"result_id", resultID,
@@ -182,120 +182,30 @@ func (s *RowingService) ProcessResult(ctx context.Context, concept2UserID int64,
 	return nil
 }
 
-// sendResultEmbed builds and posts a Discord embed for a rowing result.
-func (s *RowingService) sendResultEmbed(ctx context.Context, result concept2.Result, channelID string) error {
-	embed := buildResultEmbed(result)
-	msg := discord.ChannelMessage{Embeds: []discord.Embed{embed}}
-	return discord.SendChannelMessage(ctx, s.httpClient, s.botToken, channelID, msg)
-}
+// activityMessageFormat is the Discord message content format posted
+// alongside every rendered result image. It @-mentions the Discord user who
+// completed the activity using Discord's <@snowflake> mention syntax, which
+// the client renders as a highlighted, pinging mention (plain "@username"
+// text does not ping or render specially). The image itself (and its header
+// band) carries the sport-specific details, so the message text stays
+// generic and doesn't need to guess at the sport type.
+const activityMessageFormat = "<@%s> has completed an activity!"
 
-// buildResultEmbed formats a Concept2 result as a Discord embed.
-func buildResultEmbed(result concept2.Result) discord.Embed {
-	title, color := sportTitleAndColor(result.Type)
-
-	// Use the API's pre-formatted time when available — it includes rest time
-	// for interval workouts, which is what Concept2 displays in their UI.
-	timeStr := result.TimeFormatted
-	if timeStr == "" {
-		timeStr = formatDuration(result.Time)
+// sendResultImage renders a Concept2 result as a PNG image and posts it as a
+// Discord message attachment, with message content that @-mentions the
+// Discord user identified by discordUserID.
+func (s *RowingService) sendResultImage(ctx context.Context, result concept2.Result, discordUserID, channelID string) error {
+	pngBytes, err := render.RenderResultPNG(result)
+	if err != nil {
+		return fmt.Errorf("render result image: %w", err)
 	}
 
-	fields := []discord.EmbedField{
-		{Name: "Distance", Value: formatDistance(result.Distance), Inline: true},
-		{Name: "Time", Value: timeStr, Inline: true},
-		{Name: "Stroke Rate", Value: fmt.Sprintf("%d spm", result.StrokeRate), Inline: true},
-		{Name: "Workout Type", Value: result.WorkoutType, Inline: true},
-	}
+	content := fmt.Sprintf(activityMessageFormat, discordUserID)
 
-	// Render splits/intervals as three inline column fields so Discord displays
-	// them as a table with Distance, Time, and Pace as headers.
-	if pieces := result.Workout.Pieces(); len(pieces) > 0 {
-		label := "Splits"
-		if result.Workout.IsIntervals() {
-			label = "Intervals"
-		}
-
-		var distances, times, paces []string
-		for _, p := range pieces {
-			distances = append(distances, formatDistance(p.Distance))
-			times = append(times, formatDuration(p.Time))
-			if pace := p.Pace(); pace > 0 {
-				paces = append(paces, formatDuration(pace))
-			} else {
-				paces = append(paces, "—")
-			}
-		}
-
-		// Non-inline header field breaks the flow from the summary fields above.
-		// Zero-width space satisfies Discord's non-empty value requirement.
-		fields = append(fields,
-			discord.EmbedField{Name: label, Value: "​", Inline: false},
-			discord.EmbedField{Name: "Distance", Value: strings.Join(distances, "\n"), Inline: true},
-			discord.EmbedField{Name: "Time", Value: strings.Join(times, "\n"), Inline: true},
-			discord.EmbedField{Name: "Pace /500m", Value: strings.Join(paces, "\n"), Inline: true},
-		)
-	}
-
-	embed := discord.Embed{
-		Title:  title,
-		Color:  color,
-		Fields: fields,
-		Footer: &discord.EmbedFooter{Text: "Concept2 Logbook"},
-	}
-
-	// Parse the date as ISO8601 timestamp for the embed.
-	// The API returns dates as either "2006-01-02" or "2006-01-02 15:04:05".
-	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02"} {
-		if t, err := time.Parse(layout, result.Date); err == nil {
-			embed.Timestamp = t.UTC().Format(time.RFC3339)
-			break
-		}
-	}
-
-	return embed
-}
-
-// sportTitleAndColor returns the embed title and color for a given Concept2 sport type.
-func sportTitleAndColor(sportType string) (string, int) {
-	switch sportType {
-	case "skierg":
-		return "New SkiErg Result", 0x5B9BD5
-	case "bikeerg":
-		return "New BikeErg Result", 0xED7D31
-	default:
-		// "rower" and anything unknown default to rowing
-		return "New Rowing Result", 0x4A90D9
-	}
-}
-
-// formatDuration converts tenths of a second to "m:ss.t" format.
-// For example, 13477 → "22:27.7".
-func formatDuration(tenths int64) string {
-	if tenths <= 0 {
-		return "0:00.0"
-	}
-	t := tenths % 10
-	totalSeconds := tenths / 10
-	seconds := totalSeconds % 60
-	minutes := totalSeconds / 60
-	return fmt.Sprintf("%d:%02d.%d", minutes, seconds, t)
-}
-
-// formatDistance formats a distance in metres as a human-readable string.
-// Values under 10 km are shown as whole metres with a thousands separator;
-// values 10 km and over are shown in kilometres with one decimal place.
-func formatDistance(metres float64) string {
-	if metres >= 10000 {
-		return fmt.Sprintf("%.1f km", metres/1000)
-	}
-	// Format with comma thousands separator for values >= 1000.
-	m := int64(metres)
-	if m >= 1000 {
-		thousands := m / 1000
-		remainder := m % 1000
-		return fmt.Sprintf("%d,%03d m", thousands, remainder)
-	}
-	return fmt.Sprintf("%d m", m)
+	return discord.SendChannelMessageWithAttachment(ctx, s.httpClient, s.botToken, channelID, content, discord.Attachment{
+		Filename: "result.png",
+		Data:     pngBytes,
+	})
 }
 
 // storeRefreshedToken encrypts and upserts a refreshed token pair for the given identity.

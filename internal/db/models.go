@@ -11,6 +11,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type DiscordGuild struct {
+	ID        uuid.UUID          `json:"id"`
+	GuildID   string             `json:"guild_id"`
+	GuildName string             `json:"guild_name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type DiscordGuildSetting struct {
 	ID              uuid.UUID          `json:"id"`
 	GuildID         string             `json:"guild_id"`

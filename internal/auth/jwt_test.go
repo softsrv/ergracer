@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/ergracer/internal/auth"
+	"github.com/softsrv/rowbot/internal/auth"
 )
 
 const testSecret = "test-secret-that-is-at-least-32-bytes!!"

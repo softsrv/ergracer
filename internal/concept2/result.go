@@ -9,12 +9,23 @@ import (
 	"net/http"
 )
 
+// HeartRateSummary holds a heart rate summary, when a monitor was
+// connected. It's used both on individual Splits/intervals and on the
+// top-level Result. Concept2 also reports min/max/ending/recovery here
+// (and, for the per-split/interval variant only, "rest"), which we don't
+// currently display and so don't capture.
+type HeartRateSummary struct {
+	Average int `json:"average"`
+}
+
 // Split holds data for one split or interval within a workout.
 type Split struct {
-	Time       int64   `json:"time"`        // tenths of a second (work time)
-	Distance   float64 `json:"distance"`    // metres
-	StrokeRate int     `json:"stroke_rate"` // spm
-	RestTime   int64   `json:"rest_time"`   // tenths of a second (intervals only)
+	Time       int64             `json:"time"`           // tenths of a second (work time)
+	Distance   float64           `json:"distance"`       // metres
+	StrokeRate int               `json:"stroke_rate"`    // spm
+	RestTime   int64             `json:"rest_time"`      // tenths of a second (intervals only)
+	Calories   int               `json:"calories_total"` // total calories
+	HeartRate  *HeartRateSummary `json:"heart_rate,omitempty"`
 }
 
 // Pace returns the pace per 500m in tenths of a second, calculated from time
@@ -24,6 +35,19 @@ func (s Split) Pace() int64 {
 		return 0
 	}
 	return int64(float64(s.Time) * 500 / s.Distance)
+}
+
+// Watts returns the average power output in watts, per Concept2's published
+// formula (https://www.concept2.com/training/watts-calculator):
+// watts = 2.80 / pace³, where pace is seconds per metre. Computed directly
+// from time and distance (not via Pace()) to avoid compounding rounding
+// error. Returns 0 if distance or time is zero/negative.
+func (s Split) Watts() float64 {
+	if s.Distance <= 0 || s.Time <= 0 {
+		return 0
+	}
+	paceSecPerMeter := (float64(s.Time) / 10) / s.Distance
+	return 2.80 / (paceSecPerMeter * paceSecPerMeter * paceSecPerMeter)
 }
 
 // Workout holds the split or interval breakdown of a result.
@@ -50,21 +74,49 @@ func (w Workout) IsIntervals() bool {
 
 // Result holds the data for a single Concept2 Logbook workout result.
 type Result struct {
-	ID            int64   `json:"id"`
-	UserID        int64   `json:"user_id"`
-	Date          string  `json:"date"`           // "2024-01-15 HH:MM:SS" or "2024-01-15"
-	Distance      float64 `json:"distance"`       // metres
-	Type          string  `json:"type"`           // "rower", "skierg", "bikeerg"
-	Time          int64   `json:"time"`           // tenths of a second (work time only)
-	TimeFormatted string  `json:"time_formatted"` // pre-formatted by API; includes rest for intervals
-	Pace          int64   `json:"pace"`           // tenths of a second per 500m (0 on list results)
-	StrokeRate    int     `json:"stroke_rate"`    // spm
-	WeightClass   string  `json:"weight_class"`   // "H" or "L"
-	Verified      bool    `json:"verified"`
-	Ranked        bool    `json:"ranked"`
-	Comments      string  `json:"comments"`
-	WorkoutType   string  `json:"workout_type"` // "JustRow", "FixedDistanceSplits", etc.
-	Workout       Workout `json:"workout"`
+	ID            int64             `json:"id"`
+	UserID        int64             `json:"user_id"`
+	Date          string            `json:"date"`           // "2024-01-15 HH:MM:SS" or "2024-01-15"
+	Distance      float64           `json:"distance"`       // metres
+	Type          string            `json:"type"`           // "rower", "skierg", "bikeerg"
+	Time          int64             `json:"time"`           // tenths of a second (work time only)
+	TimeFormatted string            `json:"time_formatted"` // pre-formatted by API; includes rest for intervals
+	Pace          int64             `json:"pace"`           // tenths of a second per 500m (0 on list results)
+	StrokeRate    int               `json:"stroke_rate"`    // spm
+	WeightClass   string            `json:"weight_class"`   // "H" or "L"
+	Verified      bool              `json:"verified"`
+	Ranked        bool              `json:"ranked"`
+	Comments      string            `json:"comments"`
+	WorkoutType   string            `json:"workout_type"` // "JustRow", "FixedDistanceSplits", etc.
+	Workout       Workout           `json:"workout"`
+	Calories      int               `json:"calories_total"` // total calories
+	HeartRate     *HeartRateSummary `json:"heart_rate,omitempty"`
+}
+
+// AveragePace returns the result's average pace per 500m in tenths of a
+// second, computed from total distance and time using the same formula as
+// Split.Pace(). The API's own "pace" field is unreliable in practice (often
+// zero even on single-result fetches despite docs suggesting otherwise), so
+// callers displaying pace should use this instead of the raw Pace field.
+// Returns 0 if distance is zero.
+func (r Result) AveragePace() int64 {
+	if r.Distance <= 0 {
+		return 0
+	}
+	return int64(float64(r.Time) * 500 / r.Distance)
+}
+
+// Watts returns the result's average power output in watts, per Concept2's
+// published formula (https://www.concept2.com/training/watts-calculator):
+// watts = 2.80 / pace³, where pace is seconds per metre. Computed directly
+// from total time and distance (not via AveragePace()) to avoid compounding
+// rounding error. Returns 0 if distance or time is zero/negative.
+func (r Result) Watts() float64 {
+	if r.Distance <= 0 || r.Time <= 0 {
+		return 0
+	}
+	paceSecPerMeter := (float64(r.Time) / 10) / r.Distance
+	return 2.80 / (paceSecPerMeter * paceSecPerMeter * paceSecPerMeter)
 }
 
 type resultResponse struct {

@@ -7,16 +7,27 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/ergracer/internal/app"
-	"github.com/softsrv/ergracer/internal/http/middleware"
+	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/discord"
+	"github.com/softsrv/rowbot/internal/http/middleware"
 )
 
 const oauthStateCookie = "oauth_state"
+const oauthLoginModeCookie = "oauth_login_mode"
 const oauthLinkStateCookie = "oauth_link_state"
 const oauthConcept2LinkStateCookie = "oauth_concept2_link_state"
+
+// oauthLoginModeSilent/oauthLoginModeConsent are the values stored in
+// oauthLoginModeCookie, distinguishing a prompt=none attempt from its
+// full-consent fallback so DiscordCallback knows whether to retry.
+const (
+	oauthLoginModeSilent  = "silent"
+	oauthLoginModeConsent = "consent"
+)
 
 type oauthServicer interface {
 	HandleDiscordCallback(ctx context.Context, code string, meta app.DeviceMeta) (app.TokenResult, error)
@@ -26,45 +37,86 @@ type oauthServicer interface {
 	UnlinkConcept2(ctx context.Context, userID uuid.UUID) error
 }
 
-// OAuthHandler handles OAuth2 login and linking flows.
-type OAuthHandler struct {
-	oauth                    oauthServicer
-	discordAuthorizeURL      func(state string) string
-	discordLinkAuthorizeURL  func(state string) string
-	concept2AuthorizeURL     func(state string) string
-	secure                   bool
-	trustedProxyCount        int
+// guildRecorder is the subset of app.DiscordService used by
+// DiscordBotInstallCallback to record which guild the bot was just
+// installed into.
+type guildRecorder interface {
+	RecordGuildSeen(ctx context.Context, guildID, guildName string) error
 }
 
-// NewOAuthHandler constructs an OAuthHandler.
+// OAuthHandler handles OAuth2 login and linking flows.
+type OAuthHandler struct {
+	oauth                     oauthServicer
+	discordAuthorizeURL       func(state string) string
+	discordSilentAuthorizeURL func(state string) string
+	discordLinkAuthorizeURL   func(state string) string
+	concept2AuthorizeURL      func(state string) string
+	guildRecorder             guildRecorder
+	botToken                  string
+	httpClient                *http.Client
+	secure                    bool
+	trustedProxyCount         int
+}
+
+// NewOAuthHandler constructs an OAuthHandler. When httpClient is nil,
+// http.DefaultClient is used.
 func NewOAuthHandler(
 	oauthSvc oauthServicer,
 	discordAuthorizeURL func(state string) string,
+	discordSilentAuthorizeURL func(state string) string,
 	discordLinkAuthorizeURL func(state string) string,
 	concept2AuthorizeURL func(state string) string,
+	guildRecorder guildRecorder,
+	botToken string,
+	httpClient *http.Client,
 	secure bool,
 	trustedProxyCount int,
 ) *OAuthHandler {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	return &OAuthHandler{
-		oauth:                   oauthSvc,
-		discordAuthorizeURL:     discordAuthorizeURL,
-		discordLinkAuthorizeURL: discordLinkAuthorizeURL,
-		concept2AuthorizeURL:    concept2AuthorizeURL,
-		secure:                  secure,
-		trustedProxyCount:       trustedProxyCount,
+		oauth:                     oauthSvc,
+		discordAuthorizeURL:       discordAuthorizeURL,
+		discordSilentAuthorizeURL: discordSilentAuthorizeURL,
+		discordLinkAuthorizeURL:   discordLinkAuthorizeURL,
+		concept2AuthorizeURL:      concept2AuthorizeURL,
+		guildRecorder:             guildRecorder,
+		botToken:                  botToken,
+		httpClient:                httpClient,
+		secure:                    secure,
+		trustedProxyCount:         trustedProxyCount,
 	}
 }
 
 // ── Discord ───────────────────────────────────────────────────────────────────
 
 // DiscordLogin generates an OAuth state, stores it in a cookie, and redirects
-// to Discord's authorization endpoint.
+// to Discord's authorization endpoint. It first tries a silent (prompt=none)
+// request so a user who has already authorized this app isn't shown the
+// consent screen again; DiscordCallback falls back to a full-consent request
+// if Discord reports the silent attempt failed (e.g. this is a first-time
+// authorization).
 func (h *OAuthHandler) DiscordLogin(w http.ResponseWriter, r *http.Request) {
+	h.startDiscordLogin(w, r, true)
+}
+
+// startDiscordLogin generates a fresh state, records whether this attempt is
+// silent or full-consent (so DiscordCallback knows whether a failure is
+// retryable), and redirects to the corresponding Discord authorize URL.
+func (h *OAuthHandler) startDiscordLogin(w http.ResponseWriter, r *http.Request, silent bool) {
 	state, err := generateState()
 	if err != nil {
 		slog.ErrorContext(r.Context(), "discord login: generate state", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
+	}
+
+	mode := oauthLoginModeConsent
+	authorizeURL := h.discordAuthorizeURL
+	if silent {
+		mode = oauthLoginModeSilent
+		authorizeURL = h.discordSilentAuthorizeURL
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -76,8 +128,17 @@ func (h *OAuthHandler) DiscordLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600,
 	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthLoginModeCookie,
+		Value:    mode,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   600,
+	})
 
-	http.Redirect(w, r, h.discordAuthorizeURL(state), http.StatusFound)
+	http.Redirect(w, r, authorizeURL(state), http.StatusFound)
 }
 
 // DiscordLinkStart initiates the OAuth flow for linking Discord to an existing
@@ -108,6 +169,7 @@ func (h *OAuthHandler) DiscordLinkStart(w http.ResponseWriter, r *http.Request) 
 func (h *OAuthHandler) DiscordCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
+	oauthErr := r.URL.Query().Get("error")
 
 	loginCookie, loginErr := r.Cookie(oauthStateCookie)
 	if loginErr != nil || loginCookie.Value == "" || loginCookie.Value != state {
@@ -116,7 +178,28 @@ func (h *OAuthHandler) DiscordCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	wasSilent := false
+	if modeCookie, modeErr := r.Cookie(oauthLoginModeCookie); modeErr == nil {
+		wasSilent = modeCookie.Value == oauthLoginModeSilent
+	}
+
 	clearStateCookie(w, h.secure)
+	clearLoginModeCookie(w, h.secure)
+
+	if oauthErr != "" {
+		if wasSilent {
+			// prompt=none can't show any UI, so a user who hasn't authorized
+			// yet (or revoked access) comes back as an error rather than a
+			// consent screen. Retry once with the normal, full-consent flow.
+			slog.DebugContext(r.Context(), "discord callback: silent auth failed, retrying with consent", "error", oauthErr)
+			h.startDiscordLogin(w, r, false)
+			return
+		}
+		slog.WarnContext(r.Context(), "discord callback: authorization failed", "error", oauthErr)
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
 	h.completeDiscordLogin(w, r, code)
 }
 
@@ -150,6 +233,43 @@ func (h *OAuthHandler) DiscordLinkCallback(w http.ResponseWriter, r *http.Reques
 		slog.WarnContext(r.Context(), "discord link callback: link", "user_id", user.ID, "error", err)
 		http.Redirect(w, r, "/profile", http.StatusFound)
 		return
+	}
+
+	http.Redirect(w, r, "/profile", http.StatusFound)
+}
+
+// DiscordBotInstallCallback handles the redirect Discord sends after an
+// admin installs the bot into a server via the "extended bot
+// authorization" flow (BotInstallURL). It reads the guild_id Discord
+// includes on this redirect and records it — see DiscordService.RecordGuildSeen.
+// Protected by verifiedMW; no state-cookie CSRF check is needed here since
+// nothing sensitive is being granted to the visitor (unlike the login/link
+// flows, this doesn't create a session or link an identity, just records
+// which server got the bot added — worst case of a forged guild_id is a
+// bogus row in discord_guilds, not an account compromise).
+func (h *OAuthHandler) DiscordBotInstallCallback(w http.ResponseWriter, r *http.Request) {
+	guildID := r.URL.Query().Get("guild_id")
+	if guildID == "" {
+		slog.WarnContext(r.Context(), "discord bot install callback: missing guild_id")
+		http.Redirect(w, r, "/profile", http.StatusFound)
+		return
+	}
+
+	guildName := "unknown server"
+	if h.botToken != "" {
+		guildCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if name, err := discord.GetGuildName(guildCtx, h.httpClient, h.botToken, guildID); err == nil {
+			guildName = name
+		} else {
+			slog.WarnContext(r.Context(), "discord bot install callback: get guild name", "guild_id", guildID, "error", err)
+		}
+	}
+
+	if h.guildRecorder != nil {
+		if err := h.guildRecorder.RecordGuildSeen(r.Context(), guildID, guildName); err != nil {
+			slog.WarnContext(r.Context(), "discord bot install callback: record guild seen", "guild_id", guildID, "error", err)
+		}
 	}
 
 	http.Redirect(w, r, "/profile", http.StatusFound)
@@ -295,6 +415,18 @@ func (h *OAuthHandler) Concept2Unlink(w http.ResponseWriter, r *http.Request) {
 func clearStateCookie(w http.ResponseWriter, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     oauthStateCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+}
+
+func clearLoginModeCookie(w http.ResponseWriter, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthLoginModeCookie,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

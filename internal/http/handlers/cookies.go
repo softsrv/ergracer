@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/softsrv/ergracer/internal/app"
+	"github.com/softsrv/rowbot/internal/app"
 )
 
 func setTokenCookies(w http.ResponseWriter, result app.TokenResult, secure bool) {

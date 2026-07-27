@@ -51,6 +51,7 @@ type Querier interface {
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error
 	UpdateRefreshTokenLastUsed(ctx context.Context, arg UpdateRefreshTokenLastUsedParams) error
+	UpsertDiscordGuild(ctx context.Context, arg UpsertDiscordGuildParams) (DiscordGuild, error)
 	UpsertDiscordRegistration(ctx context.Context, arg UpsertDiscordRegistrationParams) (DiscordRegistration, error)
 	UpsertGuildSettings(ctx context.Context, arg UpsertGuildSettingsParams) (DiscordGuildSetting, error)
 	UpsertOAuthToken(ctx context.Context, arg UpsertOAuthTokenParams) (OauthToken, error)

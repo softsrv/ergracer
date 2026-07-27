@@ -1,0 +1,3773 @@
+{
+  "fetched_at": "2026-07-24T14:10:54.077227-07:00",
+  "concept2_user_id": 1890109,
+  "results": [
+    {
+      "id": 118813145,
+      "user_id": 1890109,
+      "date": "2026-07-25 11:24:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12993,
+      "time_formatted": "21:39.3",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2605,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61
+          },
+          {
+            "time": 2626,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 60
+          },
+          {
+            "time": 2605,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61
+          },
+          {
+            "time": 2593,
+            "distance": 1000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 61
+          },
+          {
+            "time": 2565,
+            "distance": 1000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 62
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 305
+    },
+    {
+      "id": 118813144,
+      "user_id": 1890109,
+      "date": "2026-07-24 11:24:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12993,
+      "time_formatted": "21:39.3",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2605,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 91
+            }
+          },
+          {
+            "time": 2626,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 60,
+            "heart_rate": {
+              "average": 92
+            }
+          },
+          {
+            "time": 2605,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 2593,
+            "distance": 1000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 106
+            }
+          },
+          {
+            "time": 2565,
+            "distance": 1000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 102
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 305,
+      "heart_rate": {
+        "average": 105
+      }
+    },
+    {
+      "id": 118750687,
+      "user_id": 1890109,
+      "date": "2026-07-22 12:29:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19890,
+      "time_formatted": "48:09.0",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 4010,
+            "distance": 1500,
+            "stroke_rate": 22,
+            "rest_time": 1800,
+            "calories_total": 89,
+            "heart_rate": {
+              "average": 110
+            }
+          },
+          {
+            "time": 3881,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 107
+            }
+          },
+          {
+            "time": 4030,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 89,
+            "heart_rate": {
+              "average": 131
+            }
+          },
+          {
+            "time": 4033,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 89,
+            "heart_rate": {
+              "average": 134
+            }
+          },
+          {
+            "time": 3936,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 91,
+            "heart_rate": {
+              "average": 135
+            }
+          }
+        ]
+      },
+      "calories_total": 450,
+      "heart_rate": {
+        "average": 136
+      }
+    },
+    {
+      "id": 118677104,
+      "user_id": 1890109,
+      "date": "2026-07-20 11:15:00",
+      "distance": 10000,
+      "type": "rower",
+      "time": 27875,
+      "time_formatted": "46:27.5",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5579,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 115,
+            "heart_rate": {
+              "average": 89
+            }
+          },
+          {
+            "time": 5537,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 115,
+            "heart_rate": {
+              "average": 97
+            }
+          },
+          {
+            "time": 5603,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 115,
+            "heart_rate": {
+              "average": 136
+            }
+          },
+          {
+            "time": 5667,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 115,
+            "heart_rate": {
+              "average": 137
+            }
+          },
+          {
+            "time": 5489,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 117,
+            "heart_rate": {
+              "average": 147
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 577,
+      "heart_rate": {
+        "average": 129
+      }
+    },
+    {
+      "id": 118592289,
+      "user_id": 1890109,
+      "date": "2026-07-17 10:56:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 13477,
+      "time_formatted": "22:27.7",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2659,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 60,
+            "heart_rate": {
+              "average": 97
+            }
+          },
+          {
+            "time": 2673,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 59,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 2729,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 58,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 2688,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 59,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 2727,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 58,
+            "heart_rate": {
+              "average": 133
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 294,
+      "heart_rate": {
+        "average": 111
+      }
+    },
+    {
+      "id": 118529699,
+      "user_id": 1890109,
+      "date": "2026-07-15 11:37:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 20520,
+      "time_formatted": "49:12.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 8158,
+            "distance": 3000,
+            "stroke_rate": 23,
+            "rest_time": 3000,
+            "calories_total": 176,
+            "heart_rate": {
+              "average": 107
+            }
+          },
+          {
+            "time": 6814,
+            "distance": 2500,
+            "stroke_rate": 24,
+            "rest_time": 3000,
+            "calories_total": 146,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 5548,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 3000,
+            "calories_total": 116,
+            "heart_rate": {
+              "average": 148
+            }
+          }
+        ]
+      },
+      "calories_total": 438,
+      "heart_rate": {
+        "average": 137
+      }
+    },
+    {
+      "id": 118495615,
+      "user_id": 1890109,
+      "date": "2026-07-14 11:46:00",
+      "distance": 5011,
+      "type": "rower",
+      "time": 14044,
+      "time_formatted": "23:24.4",
+      "pace": 0,
+      "stroke_rate": 21,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "JustRow",
+      "workout": {
+        "splits": [
+          {
+            "time": 5600,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 114,
+            "heart_rate": {
+              "average": 109
+            }
+          },
+          {
+            "time": 5599,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 114,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 2831,
+            "distance": 1011,
+            "stroke_rate": 21,
+            "rest_time": 0,
+            "calories_total": 58,
+            "heart_rate": {
+              "average": 137
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 286,
+      "heart_rate": {
+        "average": 121
+      }
+    },
+    {
+      "id": 117884608,
+      "user_id": 1890109,
+      "date": "2026-06-24 10:07:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9943,
+      "time_formatted": "28:34.3",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 2520,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 91
+            }
+          },
+          {
+            "time": 2481,
+            "distance": 1000,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 110
+            }
+          },
+          {
+            "time": 2480,
+            "distance": 1000,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 119
+            }
+          },
+          {
+            "time": 2463,
+            "distance": 1000,
+            "stroke_rate": 26,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 122
+            }
+          }
+        ]
+      },
+      "calories_total": 255,
+      "heart_rate": {
+        "average": 124
+      }
+    },
+    {
+      "id": 117818385,
+      "user_id": 1890109,
+      "date": "2026-06-22 11:58:00",
+      "distance": 11000,
+      "type": "rower",
+      "time": 30077,
+      "time_formatted": "50:07.7",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6028,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 128,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 6077,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 128,
+            "heart_rate": {
+              "average": 129
+            }
+          },
+          {
+            "time": 6055,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 128,
+            "heart_rate": {
+              "average": 132
+            }
+          },
+          {
+            "time": 6004,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 129,
+            "heart_rate": {
+              "average": 136
+            }
+          },
+          {
+            "time": 5913,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 130,
+            "heart_rate": {
+              "average": 142
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 643,
+      "heart_rate": {
+        "average": 135
+      }
+    },
+    {
+      "id": 117760819,
+      "user_id": 1890109,
+      "date": "2026-06-20 10:20:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12659,
+      "time_formatted": "21:05.9",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2520,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 109
+            }
+          },
+          {
+            "time": 2521,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 118
+            }
+          },
+          {
+            "time": 2548,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 2530,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 121
+            }
+          },
+          {
+            "time": 2541,
+            "distance": 1000,
+            "stroke_rate": 25,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 128
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 312,
+      "heart_rate": {
+        "average": 120
+      }
+    },
+    {
+      "id": 117669676,
+      "user_id": 1890109,
+      "date": "2026-06-17 11:31:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9694,
+      "time_formatted": "32:09.4",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 1232,
+            "distance": 500,
+            "stroke_rate": 23,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 93
+            }
+          },
+          {
+            "time": 1211,
+            "distance": 500,
+            "stroke_rate": 24,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 1196,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 118
+            }
+          },
+          {
+            "time": 1208,
+            "distance": 500,
+            "stroke_rate": 23,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 127
+            }
+          },
+          {
+            "time": 1216,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 122
+            }
+          },
+          {
+            "time": 1198,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 127
+            }
+          },
+          {
+            "time": 1193,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 130
+            }
+          },
+          {
+            "time": 1241,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 127
+            }
+          }
+        ]
+      },
+      "calories_total": 261,
+      "heart_rate": {
+        "average": 124
+      }
+    },
+    {
+      "id": 117631927,
+      "user_id": 1890109,
+      "date": "2026-06-16 11:31:00",
+      "distance": 13500,
+      "type": "rower",
+      "time": 37754,
+      "time_formatted": "1:02:55.4",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 7549,
+            "distance": 2700,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 155,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 7567,
+            "distance": 2700,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 155,
+            "heart_rate": {
+              "average": 117
+            }
+          },
+          {
+            "time": 7739,
+            "distance": 2700,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 154,
+            "heart_rate": {
+              "average": 135
+            }
+          },
+          {
+            "time": 7487,
+            "distance": 2700,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 158,
+            "heart_rate": {
+              "average": 146
+            }
+          },
+          {
+            "time": 7412,
+            "distance": 2700,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 158,
+            "heart_rate": {
+              "average": 145
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 780,
+      "heart_rate": {
+        "average": 135
+      }
+    },
+    {
+      "id": 117503213,
+      "user_id": 1890109,
+      "date": "2026-06-12 09:58:00",
+      "distance": 6000,
+      "type": "rower",
+      "time": 15517,
+      "time_formatted": "25:51.7",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3085,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 3100,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 3097,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 3110,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 147
+            }
+          },
+          {
+            "time": 3126,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 161
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 368,
+      "heart_rate": {
+        "average": 135
+      }
+    },
+    {
+      "id": 117430813,
+      "user_id": 1890109,
+      "date": "2026-06-10 09:19:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 10078,
+      "time_formatted": "40:47.8",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 643,
+            "distance": 250,
+            "stroke_rate": 24,
+            "rest_time": 900,
+            "calories_total": 15,
+            "heart_rate": {
+              "average": 104
+            }
+          },
+          {
+            "time": 1244,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 101
+            }
+          },
+          {
+            "time": 1876,
+            "distance": 750,
+            "stroke_rate": 24,
+            "rest_time": 2700,
+            "calories_total": 47,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 2573,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 3600,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 1893,
+            "distance": 750,
+            "stroke_rate": 25,
+            "rest_time": 2700,
+            "calories_total": 47,
+            "heart_rate": {
+              "average": 100
+            }
+          },
+          {
+            "time": 1226,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 624,
+            "distance": 250,
+            "stroke_rate": 26,
+            "rest_time": 900,
+            "calories_total": 15,
+            "heart_rate": {
+              "average": 105
+            }
+          }
+        ]
+      },
+      "calories_total": 249,
+      "heart_rate": {
+        "average": 112
+      }
+    },
+    {
+      "id": 117355811,
+      "user_id": 1890109,
+      "date": "2026-06-08 10:18:00",
+      "distance": 11000,
+      "type": "rower",
+      "time": 30335,
+      "time_formatted": "50:33.5",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5984,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 129,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 5986,
+            "distance": 2200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 129,
+            "heart_rate": {
+              "average": 118
+            }
+          },
+          {
+            "time": 6169,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 128,
+            "heart_rate": {
+              "average": 143
+            }
+          },
+          {
+            "time": 6219,
+            "distance": 2200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 128,
+            "heart_rate": {
+              "average": 142
+            }
+          },
+          {
+            "time": 5977,
+            "distance": 2200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 129,
+            "heart_rate": {
+              "average": 147
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 643,
+      "heart_rate": {
+        "average": 139
+      }
+    },
+    {
+      "id": 117267087,
+      "user_id": 1890109,
+      "date": "2026-06-05 10:16:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12555,
+      "time_formatted": "20:55.5",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2535,
+            "distance": 1000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 88
+            }
+          },
+          {
+            "time": 2522,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 2505,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 2518,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2475,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 115
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 315,
+      "heart_rate": {
+        "average": 110
+      }
+    },
+    {
+      "id": 117192581,
+      "user_id": 1890109,
+      "date": "2026-06-03 09:16:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19573,
+      "time_formatted": "47:37.3",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 3883,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 95
+            }
+          },
+          {
+            "time": 3874,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 117
+            }
+          },
+          {
+            "time": 3973,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 90,
+            "heart_rate": {
+              "average": 126
+            }
+          },
+          {
+            "time": 3996,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 3847,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 93,
+            "heart_rate": {
+              "average": 129
+            }
+          }
+        ]
+      },
+      "calories_total": 459,
+      "heart_rate": {
+        "average": 124
+      }
+    },
+    {
+      "id": 117116863,
+      "user_id": 1890109,
+      "date": "2026-06-01 10:41:00",
+      "distance": 13000,
+      "type": "rower",
+      "time": 36273,
+      "time_formatted": "1:00:27.3",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 7198,
+            "distance": 2600,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 150,
+            "heart_rate": {
+              "average": 109
+            }
+          },
+          {
+            "time": 7180,
+            "distance": 2600,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 151,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 7218,
+            "distance": 2600,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 150,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 7401,
+            "distance": 2600,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 148,
+            "heart_rate": {
+              "average": 134
+            }
+          },
+          {
+            "time": 7276,
+            "distance": 2600,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 152,
+            "heart_rate": {
+              "average": 137
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 751,
+      "heart_rate": {
+        "average": 127
+      }
+    },
+    {
+      "id": 117027140,
+      "user_id": 1890109,
+      "date": "2026-05-29 11:08:00",
+      "distance": 6000,
+      "type": "rower",
+      "time": 15460,
+      "time_formatted": "25:46.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3127,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 3079,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 106
+            }
+          },
+          {
+            "time": 3126,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 3097,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 139
+            }
+          },
+          {
+            "time": 3032,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 75,
+            "heart_rate": {
+              "average": 159
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 369,
+      "heart_rate": {
+        "average": 132
+      }
+    },
+    {
+      "id": 116956143,
+      "user_id": 1890109,
+      "date": "2026-05-27 10:03:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19122,
+      "time_formatted": "46:52.2",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 7691,
+            "distance": 3000,
+            "stroke_rate": 23,
+            "rest_time": 3000,
+            "calories_total": 186,
+            "heart_rate": {
+              "average": 93
+            }
+          },
+          {
+            "time": 6376,
+            "distance": 2500,
+            "stroke_rate": 22,
+            "rest_time": 3000,
+            "calories_total": 156,
+            "heart_rate": {
+              "average": 110
+            }
+          },
+          {
+            "time": 5055,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 3000,
+            "calories_total": 125,
+            "heart_rate": {
+              "average": 121
+            }
+          }
+        ]
+      },
+      "calories_total": 467,
+      "heart_rate": {
+        "average": 111
+      }
+    },
+    {
+      "id": 116885618,
+      "user_id": 1890109,
+      "date": "2026-05-25 10:58:00",
+      "distance": 10500,
+      "type": "rower",
+      "time": 28454,
+      "time_formatted": "47:25.4",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5681,
+            "distance": 2100,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 124,
+            "heart_rate": {
+              "average": 89
+            }
+          },
+          {
+            "time": 5721,
+            "distance": 2100,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 123,
+            "heart_rate": {
+              "average": 92
+            }
+          },
+          {
+            "time": 5749,
+            "distance": 2100,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 123,
+            "heart_rate": {
+              "average": 131
+            }
+          },
+          {
+            "time": 5699,
+            "distance": 2100,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 124,
+            "heart_rate": {
+              "average": 142
+            }
+          },
+          {
+            "time": 5604,
+            "distance": 2100,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 125,
+            "heart_rate": {
+              "average": 147
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 619,
+      "heart_rate": {
+        "average": 121
+      }
+    },
+    {
+      "id": 116798828,
+      "user_id": 1890109,
+      "date": "2026-05-22 10:40:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12603,
+      "time_formatted": "21:00.3",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": true,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2531,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 95
+            }
+          },
+          {
+            "time": 2497,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 102
+            }
+          },
+          {
+            "time": 2527,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 97
+            }
+          },
+          {
+            "time": 2530,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 107
+            }
+          },
+          {
+            "time": 2517,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 109
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 312,
+      "heart_rate": {
+        "average": 103
+      }
+    },
+    {
+      "id": 116725844,
+      "user_id": 1890109,
+      "date": "2026-05-20 11:03:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9845,
+      "time_formatted": "28:24.5",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 2473,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 2459,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 103
+            }
+          },
+          {
+            "time": 2458,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 106
+            }
+          },
+          {
+            "time": 2456,
+            "distance": 1000,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 65,
+            "heart_rate": {
+              "average": 119
+            }
+          }
+        ]
+      },
+      "calories_total": 257,
+      "heart_rate": {
+        "average": 112
+      }
+    },
+    {
+      "id": 116650721,
+      "user_id": 1890109,
+      "date": "2026-05-18 14:32:00",
+      "distance": 12500,
+      "type": "rower",
+      "time": 35677,
+      "time_formatted": "59:27.7",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6994,
+            "distance": 2500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 143,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 6904,
+            "distance": 2500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 145,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 6979,
+            "distance": 2500,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 144,
+            "heart_rate": {
+              "average": 128
+            }
+          },
+          {
+            "time": 7619,
+            "distance": 2500,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 138,
+            "heart_rate": {
+              "average": 130
+            }
+          },
+          {
+            "time": 7182,
+            "distance": 2500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 142,
+            "heart_rate": {
+              "average": 139
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 712,
+      "heart_rate": {
+        "average": 132
+      }
+    },
+    {
+      "id": 116549824,
+      "user_id": 1890109,
+      "date": "2026-05-15 10:31:00",
+      "distance": 6000,
+      "type": "rower",
+      "time": 15572,
+      "time_formatted": "25:57.2",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3085,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 94
+            }
+          },
+          {
+            "time": 3075,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 3094,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 119
+            }
+          },
+          {
+            "time": 3133,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 117
+            }
+          },
+          {
+            "time": 3184,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 72,
+            "heart_rate": {
+              "average": 120
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 367,
+      "heart_rate": {
+        "average": 118
+      }
+    },
+    {
+      "id": 116470116,
+      "user_id": 1890109,
+      "date": "2026-05-13 10:07:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9670,
+      "time_formatted": "32:07.0",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 1209,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 90
+            }
+          },
+          {
+            "time": 1212,
+            "distance": 500,
+            "stroke_rate": 24,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 107
+            }
+          },
+          {
+            "time": 1197,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 105
+            }
+          },
+          {
+            "time": 1179,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 1216,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 124
+            }
+          },
+          {
+            "time": 1232,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 1230,
+            "distance": 500,
+            "stroke_rate": 24,
+            "rest_time": 1200,
+            "calories_total": 32,
+            "heart_rate": {
+              "average": 123
+            }
+          },
+          {
+            "time": 1195,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1200,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 118
+            }
+          }
+        ]
+      },
+      "calories_total": 259,
+      "heart_rate": {
+        "average": 120
+      }
+    },
+    {
+      "id": 116394777,
+      "user_id": 1890109,
+      "date": "2026-05-11 14:08:00",
+      "distance": 10000,
+      "type": "rower",
+      "time": 27067,
+      "time_formatted": "45:06.7",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5385,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 104
+            }
+          },
+          {
+            "time": 5445,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 117,
+            "heart_rate": {
+              "average": 132
+            }
+          },
+          {
+            "time": 5452,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 142
+            }
+          },
+          {
+            "time": 5357,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 119,
+            "heart_rate": {
+              "average": 147
+            }
+          },
+          {
+            "time": 5428,
+            "distance": 2000,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 147
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 590,
+      "heart_rate": {
+        "average": 138
+      }
+    },
+    {
+      "id": 116295423,
+      "user_id": 1890109,
+      "date": "2026-05-08 10:35:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12680,
+      "time_formatted": "21:08.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2551,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 107
+            }
+          },
+          {
+            "time": 2541,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 2554,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2547,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2485,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 116
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 312,
+      "heart_rate": {
+        "average": 117
+      }
+    },
+    {
+      "id": 116225401,
+      "user_id": 1890109,
+      "date": "2026-05-06 12:51:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9934,
+      "time_formatted": "40:33.4",
+      "pace": 0,
+      "stroke_rate": 25,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 598,
+            "distance": 250,
+            "stroke_rate": 25,
+            "rest_time": 900,
+            "calories_total": 16,
+            "heart_rate": {
+              "average": 78
+            }
+          },
+          {
+            "time": 1250,
+            "distance": 500,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 31,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 1874,
+            "distance": 750,
+            "stroke_rate": 25,
+            "rest_time": 2700,
+            "calories_total": 47,
+            "heart_rate": {
+              "average": 117
+            }
+          },
+          {
+            "time": 2544,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 3600,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 104
+            }
+          },
+          {
+            "time": 1847,
+            "distance": 750,
+            "stroke_rate": 26,
+            "rest_time": 2700,
+            "calories_total": 48,
+            "heart_rate": {
+              "average": 106
+            }
+          },
+          {
+            "time": 1243,
+            "distance": 500,
+            "stroke_rate": 26,
+            "rest_time": 1800,
+            "calories_total": 31,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 578,
+            "distance": 250,
+            "stroke_rate": 27,
+            "rest_time": 900,
+            "calories_total": 17,
+            "heart_rate": {
+              "average": 110
+            }
+          }
+        ]
+      },
+      "calories_total": 252,
+      "heart_rate": {
+        "average": 113
+      }
+    },
+    {
+      "id": 116137814,
+      "user_id": 1890109,
+      "date": "2026-05-04 12:06:00",
+      "distance": 12000,
+      "type": "rower",
+      "time": 33060,
+      "time_formatted": "55:06.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6619,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 139,
+            "heart_rate": {
+              "average": 94
+            }
+          },
+          {
+            "time": 6636,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 139,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 6657,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 139,
+            "heart_rate": {
+              "average": 134
+            }
+          },
+          {
+            "time": 6552,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 140,
+            "heart_rate": {
+              "average": 139
+            }
+          },
+          {
+            "time": 6596,
+            "distance": 2400,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 140,
+            "heart_rate": {
+              "average": 142
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 697,
+      "heart_rate": {
+        "average": 129
+      }
+    },
+    {
+      "id": 116032978,
+      "user_id": 1890109,
+      "date": "2026-05-01 10:30:00",
+      "distance": 6000,
+      "type": "rower",
+      "time": 15343,
+      "time_formatted": "25:34.3",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": true,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3101,
+            "distance": 1200,
+            "stroke_rate": 25,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 90
+            }
+          },
+          {
+            "time": 3069,
+            "distance": 1200,
+            "stroke_rate": 25,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 3058,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 118
+            }
+          },
+          {
+            "time": 3069,
+            "distance": 1200,
+            "stroke_rate": 25,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 3047,
+            "distance": 1200,
+            "stroke_rate": 25,
+            "rest_time": 0,
+            "calories_total": 75,
+            "heart_rate": {
+              "average": 119
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 370,
+      "heart_rate": {
+        "average": 114
+      }
+    },
+    {
+      "id": 115958734,
+      "user_id": 1890109,
+      "date": "2026-04-29 11:11:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19340,
+      "time_formatted": "47:14.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 3892,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 3859,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 128
+            }
+          },
+          {
+            "time": 3903,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 91,
+            "heart_rate": {
+              "average": 117
+            }
+          },
+          {
+            "time": 3860,
+            "distance": 1500,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 117
+            }
+          },
+          {
+            "time": 3826,
+            "distance": 1500,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 93,
+            "heart_rate": {
+              "average": 118
+            }
+          }
+        ]
+      },
+      "calories_total": 460,
+      "heart_rate": {
+        "average": 122
+      }
+    },
+    {
+      "id": 115874382,
+      "user_id": 1890109,
+      "date": "2026-04-27 10:37:00",
+      "distance": 12000,
+      "type": "rower",
+      "time": 33337,
+      "time_formatted": "55:33.7",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6748,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 138,
+            "heart_rate": {
+              "average": 92
+            }
+          },
+          {
+            "time": 6668,
+            "distance": 2400,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 138,
+            "heart_rate": {
+              "average": 97
+            }
+          },
+          {
+            "time": 6692,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 138,
+            "heart_rate": {
+              "average": 132
+            }
+          },
+          {
+            "time": 6657,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 139,
+            "heart_rate": {
+              "average": 138
+            }
+          },
+          {
+            "time": 6573,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 140,
+            "heart_rate": {
+              "average": 141
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 693,
+      "heart_rate": {
+        "average": 122
+      }
+    },
+    {
+      "id": 115779662,
+      "user_id": 1890109,
+      "date": "2026-04-24 10:38:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 12821,
+      "time_formatted": "21:22.1",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2588,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 92
+            }
+          },
+          {
+            "time": 2567,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 101
+            }
+          },
+          {
+            "time": 2583,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2572,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 2511,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 114
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 307,
+      "heart_rate": {
+        "average": 111
+      }
+    },
+    {
+      "id": 115707852,
+      "user_id": 1890109,
+      "date": "2026-04-22 11:25:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19510,
+      "time_formatted": "47:31.0",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 7759,
+            "distance": 3000,
+            "stroke_rate": 22,
+            "rest_time": 3000,
+            "calories_total": 184,
+            "heart_rate": {
+              "average": 115
+            }
+          },
+          {
+            "time": 6495,
+            "distance": 2500,
+            "stroke_rate": 23,
+            "rest_time": 3000,
+            "calories_total": 153,
+            "heart_rate": {
+              "average": 122
+            }
+          },
+          {
+            "time": 5257,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 3000,
+            "calories_total": 121,
+            "heart_rate": {
+              "average": 121
+            }
+          }
+        ]
+      },
+      "calories_total": 458,
+      "heart_rate": {
+        "average": 118
+      }
+    },
+    {
+      "id": 115620398,
+      "user_id": 1890109,
+      "date": "2026-04-20 10:20:00",
+      "distance": 10000,
+      "type": "rower",
+      "time": 27183,
+      "time_formatted": "45:18.3",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5374,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 5373,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 5449,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 117,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 5596,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 117,
+            "heart_rate": {
+              "average": 147
+            }
+          },
+          {
+            "time": 5390,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 152
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 588,
+      "heart_rate": {
+        "average": 129
+      }
+    },
+    {
+      "id": 115252353,
+      "user_id": 1890109,
+      "date": "2026-04-10 10:24:00",
+      "distance": 6000,
+      "type": "rower",
+      "time": 15571,
+      "time_formatted": "25:57.1",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3132,
+            "distance": 1200,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 100
+            }
+          },
+          {
+            "time": 3111,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 3111,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 109
+            }
+          },
+          {
+            "time": 3144,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 3074,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 145
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 366,
+      "heart_rate": {
+        "average": 113
+      }
+    },
+    {
+      "id": 115172699,
+      "user_id": 1890109,
+      "date": "2026-04-08 11:12:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9943,
+      "time_formatted": "28:34.3",
+      "pace": 0,
+      "stroke_rate": 22,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 2531,
+            "distance": 1000,
+            "stroke_rate": 21,
+            "rest_time": 1800,
+            "calories_total": 62,
+            "heart_rate": {
+              "average": 99
+            }
+          },
+          {
+            "time": 2504,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 63,
+            "heart_rate": {
+              "average": 106
+            }
+          },
+          {
+            "time": 2485,
+            "distance": 1000,
+            "stroke_rate": 22,
+            "rest_time": 1800,
+            "calories_total": 64,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 2422,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 1800,
+            "calories_total": 65,
+            "heart_rate": {
+              "average": 121
+            }
+          }
+        ]
+      },
+      "calories_total": 254,
+      "heart_rate": {
+        "average": 112
+      }
+    },
+    {
+      "id": 115084676,
+      "user_id": 1890109,
+      "date": "2026-04-06 10:19:00",
+      "distance": 12000,
+      "type": "rower",
+      "time": 33502,
+      "time_formatted": "55:50.2",
+      "pace": 0,
+      "stroke_rate": 21,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6519,
+            "distance": 2400,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 142,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 6450,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 142,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 6882,
+            "distance": 2400,
+            "stroke_rate": 21,
+            "rest_time": 0,
+            "calories_total": 140,
+            "heart_rate": {
+              "average": 135
+            }
+          },
+          {
+            "time": 7109,
+            "distance": 2400,
+            "stroke_rate": 21,
+            "rest_time": 0,
+            "calories_total": 140,
+            "heart_rate": {
+              "average": 132
+            }
+          },
+          {
+            "time": 6541,
+            "distance": 2400,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 141,
+            "heart_rate": {
+              "average": 151
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 705,
+      "heart_rate": {
+        "average": 131
+      }
+    },
+    {
+      "id": 114985650,
+      "user_id": 1890109,
+      "date": "2026-04-03 11:14:00",
+      "distance": 5000,
+      "type": "rower",
+      "time": 13130,
+      "time_formatted": "21:53.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 2605,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 61,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 2614,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 60,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2621,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 60,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2669,
+            "distance": 1000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 59,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 2620,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 60,
+            "heart_rate": {
+              "average": 117
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 300,
+      "heart_rate": {
+        "average": 120
+      }
+    },
+    {
+      "id": 114902116,
+      "user_id": 1890109,
+      "date": "2026-04-01 10:37:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9420,
+      "time_formatted": "39:42.0",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 1190,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 93
+            }
+          },
+          {
+            "time": 1185,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 115
+            }
+          },
+          {
+            "time": 1176,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 112
+            }
+          },
+          {
+            "time": 1192,
+            "distance": 500,
+            "stroke_rate": 24,
+            "rest_time": 1800,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 110
+            }
+          },
+          {
+            "time": 1180,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 121
+            }
+          },
+          {
+            "time": 1189,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 33,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 1161,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 34,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 1146,
+            "distance": 500,
+            "stroke_rate": 25,
+            "rest_time": 1800,
+            "calories_total": 34,
+            "heart_rate": {
+              "average": 119
+            }
+          }
+        ]
+      },
+      "calories_total": 266,
+      "heart_rate": {
+        "average": 118
+      }
+    },
+    {
+      "id": 114813067,
+      "user_id": 1890109,
+      "date": "2026-03-30 10:32:00",
+      "distance": 10000,
+      "type": "rower",
+      "time": 26727,
+      "time_formatted": "44:32.7",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5357,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 119,
+            "heart_rate": {
+              "average": 89
+            }
+          },
+          {
+            "time": 5384,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 101
+            }
+          },
+          {
+            "time": 5354,
+            "distance": 2000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 119,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 5343,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 119,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 5289,
+            "distance": 2000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 120,
+            "heart_rate": {
+              "average": 108
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 595,
+      "heart_rate": {
+        "average": 101
+      }
+    },
+    {
+      "id": 114703788,
+      "user_id": 1890109,
+      "date": "2026-03-27 10:37:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19344,
+      "time_formatted": "32:14.4",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3890,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 110
+            }
+          },
+          {
+            "time": 3880,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 3888,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 118
+            }
+          },
+          {
+            "time": 3856,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 92,
+            "heart_rate": {
+              "average": 120
+            }
+          },
+          {
+            "time": 3830,
+            "distance": 1500,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 93,
+            "heart_rate": {
+              "average": 120
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 461,
+      "heart_rate": {
+        "average": 118
+      }
+    },
+    {
+      "id": 114615216,
+      "user_id": 1890109,
+      "date": "2026-03-25 10:55:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 18705,
+      "time_formatted": "51:10.5",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 3745,
+            "distance": 1500,
+            "stroke_rate": 22,
+            "rest_time": 2400,
+            "calories_total": 95,
+            "heart_rate": {
+              "average": 103
+            }
+          },
+          {
+            "time": 3747,
+            "distance": 1500,
+            "stroke_rate": 23,
+            "rest_time": 2400,
+            "calories_total": 95,
+            "heart_rate": {
+              "average": 114
+            }
+          },
+          {
+            "time": 3755,
+            "distance": 1500,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 95,
+            "heart_rate": {
+              "average": 119
+            }
+          },
+          {
+            "time": 3730,
+            "distance": 1500,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 95,
+            "heart_rate": {
+              "average": 115
+            }
+          },
+          {
+            "time": 3728,
+            "distance": 1500,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 96,
+            "heart_rate": {
+              "average": 119
+            }
+          }
+        ]
+      },
+      "calories_total": 476,
+      "heart_rate": {
+        "average": 116
+      }
+    },
+    {
+      "id": 114516773,
+      "user_id": 1890109,
+      "date": "2026-03-23 10:27:00",
+      "distance": 12000,
+      "type": "rower",
+      "time": 32356,
+      "time_formatted": "53:55.6",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6242,
+            "distance": 2400,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 146,
+            "heart_rate": {
+              "average": 108
+            }
+          },
+          {
+            "time": 6296,
+            "distance": 2400,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 146,
+            "heart_rate": {
+              "average": 116
+            }
+          },
+          {
+            "time": 6518,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 144,
+            "heart_rate": {
+              "average": 121
+            }
+          },
+          {
+            "time": 6783,
+            "distance": 2400,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 142,
+            "heart_rate": {
+              "average": 150
+            }
+          },
+          {
+            "time": 6517,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 142,
+            "heart_rate": {
+              "average": 151
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 720,
+      "heart_rate": {
+        "average": 132
+      }
+    },
+    {
+      "id": 114409045,
+      "user_id": 1890109,
+      "date": "2026-03-20 10:12:00",
+      "distance": 6000,
+      "type": "rower",
+      "time": 15574,
+      "time_formatted": "25:57.4",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 3067,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 91
+            }
+          },
+          {
+            "time": 3064,
+            "distance": 1200,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 97
+            }
+          },
+          {
+            "time": 3089,
+            "distance": 1200,
+            "stroke_rate": 22,
+            "rest_time": 0,
+            "calories_total": 74,
+            "heart_rate": {
+              "average": 92
+            }
+          },
+          {
+            "time": 3142,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 73,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 3212,
+            "distance": 1200,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 72,
+            "heart_rate": {
+              "average": 129
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 367,
+      "heart_rate": {
+        "average": 100
+      }
+    },
+    {
+      "id": 114323742,
+      "user_id": 1890109,
+      "date": "2026-03-18 11:07:00",
+      "distance": 7500,
+      "type": "rower",
+      "time": 19227,
+      "time_formatted": "47:02.7",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 7659,
+            "distance": 3000,
+            "stroke_rate": 24,
+            "rest_time": 3000,
+            "calories_total": 187,
+            "heart_rate": {
+              "average": 98
+            }
+          },
+          {
+            "time": 6389,
+            "distance": 2500,
+            "stroke_rate": 25,
+            "rest_time": 3000,
+            "calories_total": 155,
+            "heart_rate": {
+              "average": 115
+            }
+          },
+          {
+            "time": 5179,
+            "distance": 2000,
+            "stroke_rate": 24,
+            "rest_time": 3000,
+            "calories_total": 123,
+            "heart_rate": {
+              "average": 120
+            }
+          }
+        ]
+      },
+      "calories_total": 465,
+      "heart_rate": {
+        "average": 114
+      }
+    },
+    {
+      "id": 114213771,
+      "user_id": 1890109,
+      "date": "2026-03-16 09:23:00",
+      "distance": 10000,
+      "type": "rower",
+      "time": 26973,
+      "time_formatted": "44:57.3",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 5293,
+            "distance": 2000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 120,
+            "heart_rate": {
+              "average": 100
+            }
+          },
+          {
+            "time": 5322,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 122,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 5313,
+            "distance": 2000,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 120,
+            "heart_rate": {
+              "average": 130
+            }
+          },
+          {
+            "time": 5559,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 119,
+            "heart_rate": {
+              "average": 146
+            }
+          },
+          {
+            "time": 5486,
+            "distance": 2000,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 118,
+            "heart_rate": {
+              "average": 147
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 599,
+      "heart_rate": {
+        "average": 131
+      }
+    },
+    {
+      "id": 114104169,
+      "user_id": 1890109,
+      "date": "2026-03-13 11:28:00",
+      "distance": 6890,
+      "type": "rower",
+      "time": 18000,
+      "time_formatted": "34:00.0",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "VariableInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 9000,
+            "distance": 3460,
+            "stroke_rate": 23,
+            "rest_time": 1200,
+            "calories_total": 211,
+            "heart_rate": {
+              "average": 106
+            }
+          },
+          {
+            "time": 9000,
+            "distance": 3430,
+            "stroke_rate": 24,
+            "rest_time": 1200,
+            "calories_total": 208,
+            "heart_rate": {
+              "average": 120
+            }
+          }
+        ]
+      },
+      "calories_total": 419,
+      "heart_rate": {
+        "average": 118
+      }
+    },
+    {
+      "id": 114009710,
+      "user_id": 1890109,
+      "date": "2026-03-11 10:51:00",
+      "distance": 4000,
+      "type": "rower",
+      "time": 9687,
+      "time_formatted": "32:08.7",
+      "pace": 0,
+      "stroke_rate": 24,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceInterval",
+      "workout": {
+        "splits": null,
+        "intervals": [
+          {
+            "time": 2438,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 65,
+            "heart_rate": {
+              "average": 87
+            }
+          },
+          {
+            "time": 2390,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 66,
+            "heart_rate": {
+              "average": 97
+            }
+          },
+          {
+            "time": 2399,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 66,
+            "heart_rate": {
+              "average": 111
+            }
+          },
+          {
+            "time": 2460,
+            "distance": 1000,
+            "stroke_rate": 24,
+            "rest_time": 2400,
+            "calories_total": 66,
+            "heart_rate": {
+              "average": 122
+            }
+          }
+        ]
+      },
+      "calories_total": 263,
+      "heart_rate": {
+        "average": 107
+      }
+    },
+    {
+      "id": 113916168,
+      "user_id": 1890109,
+      "date": "2026-03-09 11:58:00",
+      "distance": 12000,
+      "type": "rower",
+      "time": 31549,
+      "time_formatted": "52:34.9",
+      "pace": 0,
+      "stroke_rate": 23,
+      "weight_class": "H",
+      "verified": true,
+      "ranked": false,
+      "comments": "",
+      "workout_type": "FixedDistanceSplits",
+      "workout": {
+        "splits": [
+          {
+            "time": 6259,
+            "distance": 2400,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 146,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 6341,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 144,
+            "heart_rate": {
+              "average": 96
+            }
+          },
+          {
+            "time": 6372,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 144,
+            "heart_rate": {
+              "average": 101
+            }
+          },
+          {
+            "time": 6322,
+            "distance": 2400,
+            "stroke_rate": 24,
+            "rest_time": 0,
+            "calories_total": 145,
+            "heart_rate": {
+              "average": 113
+            }
+          },
+          {
+            "time": 6256,
+            "distance": 2400,
+            "stroke_rate": 23,
+            "rest_time": 0,
+            "calories_total": 146,
+            "heart_rate": {
+              "average": 115
+            }
+          }
+        ],
+        "intervals": null
+      },
+      "calories_total": 725,
+      "heart_rate": {
+        "average": 103
+      }
+    }
+  ]
+}

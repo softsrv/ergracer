@@ -1,6 +1,6 @@
-APP_NAME         := app
+APP_NAME         := rowbot
 BIN_DIR          := ./bin
-MODULE           := github.com/softsrv/ergracer
+MODULE           := github.com/softsrv/rowbot
 SMTP4DEV_NAME    := $(APP_NAME)-smtp4dev
 SMTP4DEV_SMTP    := 2525
 SMTP4DEV_WEB     := 5000

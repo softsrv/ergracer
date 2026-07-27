@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/softsrv/ergracer/internal/users"
+	"github.com/softsrv/rowbot/internal/users"
 )
 
 func TestNormalizeEmail(t *testing.T) {

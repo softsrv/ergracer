@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/softsrv/ergracer/internal/auth"
-	"github.com/softsrv/ergracer/internal/db"
+	"github.com/softsrv/rowbot/internal/auth"
+	"github.com/softsrv/rowbot/internal/db"
 )
 
 type userContextKey struct{}

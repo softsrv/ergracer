@@ -28,7 +28,7 @@ var manageGuildPerm = "32"
 // Commands is the authoritative list of slash commands this application exposes.
 // Add new commands here; they are registered on every startup.
 var Commands = []ApplicationCommand{
-	{Type: 1, Name: "register", Description: "Request registration for ergracer"},
+	{Type: 1, Name: "register", Description: "Request registration for RowBot"},
 	{Type: 1, Name: "setchannel", Description: "Set the current channel as the Concept2 reporting channel", DefaultMemberPermissions: &manageGuildPerm},
 }
 

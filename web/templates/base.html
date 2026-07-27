@@ -9,7 +9,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{block "title" .}}App{{end}}</title>
+  <title>{{block "title" .}}RowBot{{end}}</title>
+  <link rel="icon" type="image/png" href="/static/img/rowboticon.png" />
   <link rel="stylesheet" href="/static/css/dist/app.css" />
   <script src="/static/js/htmx.min.js"></script>
   <script src="/static/js/app.js" defer></script>
@@ -17,7 +18,10 @@
 <body class="min-h-screen bg-base-200">
   <nav class="navbar bg-base-100 shadow-sm px-4">
     <div class="flex-1">
-      <a href="/" class="text-xl font-bold">App</a>
+      <a href="/" class="flex items-center gap-2 text-xl font-bold">
+        <img src="/static/img/rowboticon.png" alt="" class="h-8 w-8 rounded-md" />
+        RowBot
+      </a>
     </div>
     <div class="flex-none gap-2">
       {{if .User}}

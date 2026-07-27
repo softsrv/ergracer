@@ -5,7 +5,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/softsrv/ergracer/internal/http/handlers"
+	"github.com/softsrv/rowbot/internal/http/handlers"
 )
 
 const testJWTSecret = "handler-test-secret-at-least-32-bytes-long!!"

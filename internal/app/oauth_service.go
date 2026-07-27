@@ -12,16 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/softsrv/ergracer/internal/db"
-	"github.com/softsrv/ergracer/internal/oauth"
-	"github.com/softsrv/ergracer/internal/secrets"
-	"github.com/softsrv/ergracer/internal/users"
+	"github.com/softsrv/rowbot/internal/db"
+	"github.com/softsrv/rowbot/internal/oauth"
+	"github.com/softsrv/rowbot/internal/secrets"
+	"github.com/softsrv/rowbot/internal/users"
 )
 
 var ErrDiscordUnverifiedEmail = errors.New("discord account has an unverified email")
-var ErrDiscordAlreadyLinkedToOtherUser = errors.New("this Discord account is already linked to a different ergracer account")
+var ErrDiscordAlreadyLinkedToOtherUser = errors.New("this Discord account is already linked to a different RowBot account")
 var ErrCannotUnlinkLastLoginMethod = errors.New("cannot unlink Discord: set a password before disconnecting your only login method")
-var ErrConcept2AlreadyLinkedToOtherUser = errors.New("this Concept2 account is already linked to a different ergracer account")
+var ErrConcept2AlreadyLinkedToOtherUser = errors.New("this Concept2 account is already linked to a different RowBot account")
 var ErrCannotUnlinkConcept2LastMethod = errors.New("cannot unlink Concept2: set a password before disconnecting your only login method")
 
 const discordProvider = "discord"

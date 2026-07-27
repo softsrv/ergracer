@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/softsrv/ergracer/internal/secrets"
+	"github.com/softsrv/rowbot/internal/secrets"
 )
 
 func TestEncryptDecryptRoundTrip(t *testing.T) {
@@ -17,7 +17,7 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	plaintext := []byte("hello, ergracer oauth token")
+	plaintext := []byte("hello, RowBot oauth token")
 	ct, err := enc.Encrypt(plaintext)
 	if err != nil {
 		t.Fatal(err)
