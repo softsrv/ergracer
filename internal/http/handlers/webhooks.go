@@ -43,14 +43,14 @@ func truncatedBody(body []byte) string {
 }
 
 // eventResultID returns the result ID to log for an ignored event, preferring
-// the nested Data.Result.ID (used by result-added/result-updated) and falling
-// back to the sibling Data.ResultID (used by result-deleted) when no result
+// the nested Result.ID (used by result-added/result-updated) and falling
+// back to the sibling ResultID (used by result-deleted) when no result
 // object is present.
-func eventResultID(data concept2.Concept2PayloadData) int64 {
-	if data.Result != nil {
-		return data.Result.ID
+func eventResultID(payload concept2.Concept2Payload) int64 {
+	if payload.Result != nil {
+		return payload.Result.ID
 	}
-	return data.ResultID
+	return payload.ResultID
 }
 
 // Concept2 handles POST /webhooks/concept2.
@@ -70,7 +70,7 @@ func eventResultID(data concept2.Concept2PayloadData) int64 {
 //  1. Content-Type must contain "application/json" — 415 otherwise.
 //  2. Raw body read — 400 on error.
 //  3. JSON unmarshal — 400 on error.
-//  4. Required field validation (data.type must be non-empty) — 400 otherwise.
+//  4. Required field validation (type must be non-empty) — 400 otherwise.
 //  5. Event type filter — only "result-added" is processed; other known event
 //     types ("result-updated", "result-deleted") are logged and acknowledged
 //     with 200 without further action.
@@ -115,8 +115,8 @@ func (h *WebhookHandler) Concept2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Validate required fields.
-	if payload.Data.Type == "" {
-		slog.Warn("concept2 webhook: rejected — empty/missing \"data.type\" field after decode; "+
+	if payload.Type == "" {
+		slog.Warn("concept2 webhook: rejected — empty/missing \"type\" field after decode; "+
 			"this usually means the payload's JSON shape doesn't match what we expect "+
 			"(see concept2.Concept2Payload) — check the logged body against it",
 			"body", truncatedBody(body),
@@ -128,10 +128,10 @@ func (h *WebhookHandler) Concept2(w http.ResponseWriter, r *http.Request) {
 	// 5. Only "result-added" events are processed; other event types
 	// (e.g. "result-updated", "result-deleted") are legitimate but not yet
 	// acted on, so acknowledge with 200 to avoid triggering Concept2 retries.
-	if payload.Data.Type != "result-added" {
+	if payload.Type != "result-added" {
 		slog.Info("concept2 webhook: ignoring event type",
-			"event_type", payload.Data.Type,
-			"result_id", eventResultID(payload.Data),
+			"event_type", payload.Type,
+			"result_id", eventResultID(payload),
 		)
 		w.WriteHeader(http.StatusOK)
 		return
@@ -139,7 +139,7 @@ func (h *WebhookHandler) Concept2(w http.ResponseWriter, r *http.Request) {
 
 	// A "result-added" event without a nested result object is malformed —
 	// reject rather than risk a nil-pointer dereference below.
-	if payload.Data.Result == nil {
+	if payload.Result == nil {
 		slog.Warn("concept2 webhook: rejected — \"result-added\" event has no nested \"result\" object; "+
 			"check the logged body against concept2.Concept2Payload",
 			"body", truncatedBody(body),
@@ -148,12 +148,12 @@ func (h *WebhookHandler) Concept2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	concept2UserID := payload.Data.Result.UserID
-	resultID := payload.Data.Result.ID
+	concept2UserID := payload.Result.UserID
+	resultID := payload.Result.ID
 
 	// 6. Log and respond immediately; process asynchronously.
 	slog.Info("concept2 webhook received",
-		"event_type", payload.Data.Type,
+		"event_type", payload.Type,
 		"concept2_user_id", concept2UserID,
 		"result_id", resultID,
 	)

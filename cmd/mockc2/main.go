@@ -25,10 +25,10 @@
 //
 // mockc2 serves an HTML fixture browser at http://localhost:<port>/ — every
 // result in the data file, pretty-printed, with a "Send" button per entry
-// that POSTs it as a webhook (matching Concept2's documented
-// {"data": {"type": "result-added", "result": {...}}} shape) to --target,
-// triggering the real webhook → ProcessResult → Discord pipeline against
-// this mock's data, all from the browser.
+// that POSTs it as a webhook (matching Concept2's real, flat delivery shape —
+// see concept2.Concept2Payload) to --target, triggering the real webhook →
+// ProcessResult → Discord pipeline against this mock's data, all from the
+// browser.
 package main
 
 import (

@@ -70,6 +70,45 @@ func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http
 	}
 }
 
+// OptionalAuthenticate is like Authenticate, but never rejects the request —
+// a missing, expired, or invalid token simply leaves the context unpopulated
+// (UserFromContext returns ok=false) instead of redirecting. For public pages
+// that render differently for signed-in vs. anonymous visitors (e.g. the
+// dashboard's setup checklist), rather than pages that require a session.
+func OptionalAuthenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			tokenStr := extractToken(r)
+			if tokenStr == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			claims, err := auth.ValidateAccessToken(tokenStr, jwtSecret)
+			if err != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			userID, err := uuid.Parse(claims.Subject)
+			if err != nil {
+				slog.WarnContext(r.Context(), "optional auth: invalid user id in token claims", "subject", claims.Subject, "error", err)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			user, err := queries.GetUserByID(r.Context(), userID)
+			if err != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), userContextKey{}, user)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 // UserFromContext retrieves the authenticated user from context.
 func UserFromContext(ctx context.Context) (db.User, bool) {
 	u, ok := ctx.Value(userContextKey{}).(db.User)
@@ -107,11 +146,14 @@ func RequireEmailVerified(next http.Handler) http.Handler {
 }
 
 func respondUnauthorized(w http.ResponseWriter, r *http.Request) {
+	// /login no longer exists — Discord OAuth via /dashboard is the sole sign-in
+	// entry point, so an unauthenticated visitor hitting a protected route is
+	// sent there instead.
 	// For HTMX requests, redirect via header so the partial swap works.
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/login")
+		w.Header().Set("HX-Redirect", "/dashboard")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 }

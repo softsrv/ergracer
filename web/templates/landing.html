@@ -1,0 +1,94 @@
+{{define "title"}}RowBot — Concept2 results, straight to Discord{{end}}
+
+{{define "main-class"}}px-4{{end}}
+
+{{define "nav-actions"}}
+<a href="/dashboard" class="btn btn-primary btn-xs sm:btn-sm">Get Started</a>
+{{end}}
+
+{{define "content"}}
+<div class="mx-auto max-w-5xl">
+
+  <!-- Hero -->
+  <section class="flex flex-col items-center gap-8 py-16 text-center md:py-24">
+    <img src="/static/img/rowboticon.png" alt="RowBot" class="h-20 w-20 rounded-2xl shadow-lg" />
+
+    <div class="space-y-4">
+      <h1 class="text-4xl font-bold tracking-tight text-balance md:text-5xl">
+        Your Concept2 results,<br class="hidden md:block" /> straight to Discord.
+      </h1>
+      <p class="mx-auto max-w-xl text-lg text-base-content/70 text-balance">
+        Finish an activity for your Ergdata logbook, and RowBot automatically
+        drops a clean result card in your Discord server.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
+      <a href="/dashboard" class="btn btn-primary btn-lg">Get Started</a>
+    </div>
+  </section>
+
+  <!-- Result card preview: a static mockup matching the real generated cards -->
+  <section class="mx-auto mb-20 max-w-lg">
+    <div class="overflow-hidden rounded-2xl border border-base-content/10 bg-white shadow-2xl">
+      <div class="px-6 py-5" style="background:#4A90D9;">
+        <p class="text-xl font-bold text-white">Rowing</p>
+        <p class="text-sm" style="color:#dceafb;">Fixed Distance Splits – 5,000 m</p>
+      </div>
+      <div class="grid grid-cols-4 gap-px bg-base-content/5 text-center">
+        <div class="bg-white px-2 py-4">
+          <p class="text-[10px] tracking-wide text-gray-400 uppercase">Time</p>
+          <p class="text-lg font-semibold text-gray-800">21:39.3</p>
+        </div>
+        <div class="bg-white px-2 py-4">
+          <p class="text-[10px] tracking-wide text-gray-400 uppercase">Avg pace</p>
+          <p class="text-lg font-semibold text-gray-800">2:09.9</p>
+        </div>
+        <div class="bg-white px-2 py-4">
+          <p class="text-[10px] tracking-wide text-gray-400 uppercase">Avg watts</p>
+          <p class="text-lg font-semibold text-gray-800">160</p>
+        </div>
+        <div class="bg-white px-2 py-4">
+          <p class="text-[10px] tracking-wide text-gray-400 uppercase">Calories</p>
+          <p class="text-lg font-semibold text-gray-800">305</p>
+        </div>
+      </div>
+      <div class="bg-white px-6 py-3 text-xs text-gray-400">
+        <span class="font-medium text-gray-500">@you</span> has completed an activity!
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="mb-24">
+    <h2 class="mb-10 text-center text-2xl font-bold">Set up once. It just works from there.</h2>
+    <div class="grid gap-8 md:grid-cols-3">
+      <div class="flex flex-col items-center gap-3 text-center">
+        <div class="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-content font-bold">1</div>
+        <h3 class="font-semibold">Connect Concept2</h3>
+        <p class="text-sm text-base-content/70">Link your Concept2 Logbook account from your dashboard — takes one click.</p>
+      </div>
+      <div class="flex flex-col items-center gap-3 text-center">
+        <div class="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-content font-bold">2</div>
+        <h3 class="font-semibold">Add RowBot to Discord</h3>
+        <p class="text-sm text-base-content/70">Install the bot on your server and run <code class="rounded bg-base-300 px-1.5 py-0.5 text-xs">/setchannel</code> where results should post.</p>
+      </div>
+      <div class="flex flex-col items-center gap-3 text-center">
+        <div class="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-content font-bold">3</div>
+        <h3 class="font-semibold">Go row, ski, or bike</h3>
+        <p class="text-sm text-base-content/70">Every result you log — rower, SkiErg, BikeErg, and more — posts automatically. No manual work.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="mb-20 rounded-3xl bg-base-100 px-8 py-14 text-center shadow-xl">
+    <h2 class="text-2xl font-bold">Ready to share your results?</h2>
+    <p class="mx-auto mt-2 max-w-md text-base-content/70">
+      Sign in with Discord and connect Concept2 in a couple of minutes.
+    </p>
+    <a href="/dashboard" class="btn btn-primary btn-lg mt-6">Get Started</a>
+  </section>
+
+</div>
+{{end}}

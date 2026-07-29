@@ -127,6 +127,19 @@ func (s *DiscordService) SetChannel(ctx context.Context, guildID, guildName, cha
 	return setting, nil
 }
 
+// HasDiscordRegistration reports whether the given site user has registered
+// (via /register) in at least one Discord server.
+func (s *DiscordService) HasDiscordRegistration(ctx context.Context, userID uuid.UUID) (bool, error) {
+	regs, err := s.q.ListDiscordRegistrationsByUser(ctx, pgtype.UUID{
+		Bytes: userID,
+		Valid: true,
+	})
+	if err != nil {
+		return false, fmt.Errorf("list discord registrations: %w", err)
+	}
+	return len(regs) > 0, nil
+}
+
 // RecordGuildSeen upserts a guild's presence/name whenever we observe it —
 // on bot install, or opportunistically from any slash-command interaction.
 // There's no polling of Discord's guild list (this app scales to zero when

@@ -1,10 +1,14 @@
 package handlers_test
 
 import (
+	"context"
 	"html/template"
 	"testing"
 	"testing/fstest"
 
+	"github.com/google/uuid"
+
+	"github.com/softsrv/rowbot/internal/db"
 	"github.com/softsrv/rowbot/internal/http/handlers"
 )
 
@@ -27,15 +31,18 @@ var testTemplateFS = fstest.MapFS{
 	"templates/partials/session-list.html": &fstest.MapFile{Data: []byte(
 		`{{define "partials/session-list.html"}}sessions:{{len .Sessions}}{{end}}`,
 	)},
-	"templates/auth/login.html": &fstest.MapFile{Data: []byte(
-		`{{define "content"}}login{{end}}`,
-	)},
-	"templates/auth/register.html": &fstest.MapFile{Data: []byte(
-		`{{define "content"}}register{{end}}`,
-	)},
-	"templates/auth/verify-email.html": &fstest.MapFile{Data: []byte(
-		`{{define "content"}}verify{{end}}`,
-	)},
+}
+
+// handlerUserFetcher satisfies middleware.UserFetcher for context population,
+// shared by any handler test that needs to exercise the real Authenticate
+// middleware.
+type handlerUserFetcher struct {
+	user db.User
+	err  error
+}
+
+func (f *handlerUserFetcher) GetUserByID(context.Context, uuid.UUID) (db.User, error) {
+	return f.user, f.err
 }
 
 // newTestRenderer builds a TemplateRenderer over testTemplateFS the same way

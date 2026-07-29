@@ -163,21 +163,26 @@ func TestRenderResultPNG(t *testing.T) {
 				t.Fatal("test setup error: expected pieces but found none")
 			}
 
-			// Every result renders the header band plus a table (even with
-			// zero pieces, in which case it's just the header row), so the
-			// height formula is exact and unconditional — no separate
-			// "no table" case anymore.
+			// Every result renders the header band and hero stats, plus —
+			// only when there are pieces — the splits/intervals table
+			// (column-header row included). A result with no pieces (e.g.
+			// JustRow) has no table at all, so its height excludes the
+			// table dimensions entirely.
 			rowCount := len(pieces)
 			truncated := false
 			if rowCount > maxTableRows {
 				rowCount = maxTableRows
 				truncated = true
 			}
-			expected := headerHeight + heroStatsHeight + tableTopPad + tableHeaderHeight + rowCount*tableRowHeight
-			if truncated {
-				expected += tableRowHeight
+			expected := headerHeight + heroStatsHeight
+			if len(pieces) > 0 {
+				expected += tableTopPad + tableHeaderHeight + rowCount*tableRowHeight
+				if truncated {
+					expected += tableRowHeight
+				}
+				expected += tableBottomPad
 			}
-			expected += tableBottomPad + footerHeight
+			expected += footerHeight
 			if bounds.Dy() != expected {
 				t.Errorf("height = %d, want %d (rowCount=%d truncated=%v)", bounds.Dy(), expected, rowCount, truncated)
 			}

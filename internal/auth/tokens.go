@@ -27,11 +27,6 @@ func GenerateRefreshToken() (raw, hashed string, err error) {
 	return generateRandomToken("refresh token")
 }
 
-// GenerateResetToken creates a cryptographically random URL-safe reset token.
-func GenerateResetToken() (raw, hashed string, err error) {
-	return generateRandomToken("reset token")
-}
-
 // HashToken returns the hex-encoded SHA-256 hash of the given token string.
 func HashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
@@ -42,11 +37,4 @@ func HashToken(token string) string {
 func CompareTokenHash(raw, storedHash string) bool {
 	computed := HashToken(raw)
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(storedHash)) == 1
-}
-
-// GenerateVerificationToken creates a cryptographically random URL-safe token
-// for email verification links, returning both the raw form (for the URL) and
-// its SHA-256 hash (for storage).
-func GenerateVerificationToken() (raw, hashed string, err error) {
-	return generateRandomToken("verification token")
 }

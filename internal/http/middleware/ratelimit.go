@@ -103,16 +103,6 @@ func IPKeyFunc(trustedProxies int) func(*http.Request) string {
 	}
 }
 
-// FormEmailKeyFunc extracts the email field from the form body.
-// On parse failure it falls back to the client IP so all failed-parse requests
-// do not share a single bucket.
-func FormEmailKeyFunc(r *http.Request) string {
-	if err := r.ParseForm(); err != nil {
-		return "ip:" + ClientIP(r, 0)
-	}
-	return "email:" + r.FormValue("email")
-}
-
 // CookieRefreshTokenKeyFunc extracts the refresh token cookie as the rate-limit key.
 func CookieRefreshTokenKeyFunc(r *http.Request) string {
 	if c, err := r.Cookie("refresh_token"); err == nil {

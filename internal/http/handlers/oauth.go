@@ -32,7 +32,6 @@ const (
 type oauthServicer interface {
 	HandleDiscordCallback(ctx context.Context, code string, meta app.DeviceMeta) (app.TokenResult, error)
 	LinkDiscord(ctx context.Context, userID uuid.UUID, code string) error
-	UnlinkDiscord(ctx context.Context, userID uuid.UUID) error
 	LinkConcept2(ctx context.Context, userID uuid.UUID, code string) error
 	UnlinkConcept2(ctx context.Context, userID uuid.UUID) error
 }
@@ -174,7 +173,7 @@ func (h *OAuthHandler) DiscordCallback(w http.ResponseWriter, r *http.Request) {
 	loginCookie, loginErr := r.Cookie(oauthStateCookie)
 	if loginErr != nil || loginCookie.Value == "" || loginCookie.Value != state {
 		slog.WarnContext(r.Context(), "discord callback: state mismatch")
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
@@ -196,7 +195,7 @@ func (h *OAuthHandler) DiscordCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		slog.WarnContext(r.Context(), "discord callback: authorization failed", "error", oauthErr)
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
@@ -225,7 +224,7 @@ func (h *OAuthHandler) DiscordLinkCallback(w http.ResponseWriter, r *http.Reques
 
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
@@ -278,7 +277,7 @@ func (h *OAuthHandler) DiscordBotInstallCallback(w http.ResponseWriter, r *http.
 func (h *OAuthHandler) completeDiscordLogin(w http.ResponseWriter, r *http.Request, code string) {
 	if code == "" {
 		slog.WarnContext(r.Context(), "discord login callback: missing code")
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
@@ -286,39 +285,12 @@ func (h *OAuthHandler) completeDiscordLogin(w http.ResponseWriter, r *http.Reque
 	result, err := h.oauth.HandleDiscordCallback(r.Context(), code, meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "discord login callback: handle", "error", err)
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
 	setTokenCookies(w, result, h.secure)
 	http.Redirect(w, r, "/dashboard", http.StatusFound)
-}
-
-// DiscordUnlink removes the Discord identity link from the authenticated user's account.
-func (h *OAuthHandler) DiscordUnlink(w http.ResponseWriter, r *http.Request) {
-	user, ok := middleware.UserFromContext(r.Context())
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	if err := h.oauth.UnlinkDiscord(r.Context(), user.ID); err != nil {
-		slog.WarnContext(r.Context(), "discord unlink", "user_id", user.ID, "error", err)
-		if r.Header.Get("HX-Request") == "true" {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`<div class="alert alert-error text-sm">` + html.EscapeString(err.Error()) + `</div>`)) //nolint:errcheck
-			return
-		}
-		http.Redirect(w, r, "/profile", http.StatusFound)
-		return
-	}
-
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/profile")
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-	http.Redirect(w, r, "/profile", http.StatusFound)
 }
 
 // ── Concept2 ──────────────────────────────────────────────────────────────────
@@ -370,7 +342,7 @@ func (h *OAuthHandler) Concept2LinkCallback(w http.ResponseWriter, r *http.Reque
 
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
@@ -398,16 +370,16 @@ func (h *OAuthHandler) Concept2Unlink(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`<div class="alert alert-error text-sm">` + html.EscapeString(err.Error()) + `</div>`)) //nolint:errcheck
 			return
 		}
-		http.Redirect(w, r, "/profile", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/profile")
+		w.Header().Set("HX-Redirect", "/dashboard")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	http.Redirect(w, r, "/profile", http.StatusFound)
+	http.Redirect(w, r, "/dashboard", http.StatusFound)
 }
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────

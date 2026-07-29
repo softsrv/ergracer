@@ -50,16 +50,12 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	if cfg.OAuthSvc != nil {
 		profileOAuth = cfg.OAuthSvc
 	}
-	profileH := handlers.NewProfileHandler(cfg.AuthSvc, cfg.UserSvc, profileOAuth, cfg.DiscordBotInstallURL, cfg.Renderer, cfg.Secure)
+	profileH := handlers.NewProfileHandler(cfg.UserSvc, profileOAuth, cfg.DiscordSvc, cfg.DiscordBotInstallURL, cfg.Renderer, cfg.Secure)
 
 	// ── Rate limiters ─────────────────────────────────────────────────────────
 	// Each limiter spawns a sweep goroutine that exits when ctx is cancelled.
 	ipKey := middleware.IPKeyFunc(cfg.TrustedProxyCount)
-	loginRL := middleware.NewRateLimiter(ctx, 5, 15*time.Minute, ipKey)
-	registerRL := middleware.NewRateLimiter(ctx, 3, time.Hour, ipKey)
 	refreshRL := middleware.NewRateLimiter(ctx, 10, time.Minute, middleware.CookieRefreshTokenKeyFunc)
-	forgotRL := middleware.NewRateLimiter(ctx, 3, time.Hour, middleware.FormEmailKeyFunc)
-	resetRL := middleware.NewRateLimiter(ctx, 5, time.Hour, ipKey)
 
 	authMW := middleware.Authenticate(cfg.Queries, cfg.JWTSecret)
 	verifiedMW := func(h http.Handler) http.Handler { return authMW(middleware.RequireEmailVerified(h)) }
@@ -72,7 +68,6 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 		mux.Handle("GET /auth/discord/link", verifiedMW(http.HandlerFunc(oauthH.DiscordLinkStart)))
 		mux.Handle("GET /auth/discord/link/callback", verifiedMW(http.HandlerFunc(oauthH.DiscordLinkCallback)))
 		mux.Handle("GET /auth/discord/bot-install/callback", verifiedMW(http.HandlerFunc(oauthH.DiscordBotInstallCallback)))
-		mux.Handle("POST /profile/integrations/discord/unlink", verifiedMW(http.HandlerFunc(oauthH.DiscordUnlink)))
 
 		mux.Handle("GET /auth/concept2/link", verifiedMW(http.HandlerFunc(oauthH.Concept2LinkStart)))
 		mux.Handle("GET /auth/concept2/link/callback", verifiedMW(http.HandlerFunc(oauthH.Concept2LinkCallback)))
@@ -99,45 +94,39 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	mux.HandleFunc("GET /ready", handlers.HandleReadiness(cfg.Pool))
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		// Only send the user to the dashboard if they present a genuinely valid
-		// access token; a stale or malformed cookie should land on /login rather
-		// than bouncing through a protected route.
+		// Send an already-authenticated visitor straight to the dashboard;
+		// only send them there for a genuinely valid access token — a stale
+		// or malformed cookie should land on the landing page rather than
+		// bouncing through a protected route. Anonymous visitors see the
+		// marketing landing page instead of being redirected anywhere.
 		if cookie, err := r.Cookie("access_token"); err == nil && cookie.Value != "" {
 			if _, vErr := auth.ValidateAccessToken(cookie.Value, cfg.JWTSecret); vErr == nil {
 				http.Redirect(w, r, "/dashboard", http.StatusFound)
 				return
 			}
 		}
-		http.Redirect(w, r, "/login", http.StatusFound)
+		cfg.Renderer.Page(w, http.StatusOK, "landing.html", nil)
 	})
-	mux.HandleFunc("GET /login", authH.LoginPage)
-	mux.HandleFunc("GET /register", authH.RegisterPage)
-	mux.HandleFunc("GET /forgot-password", authH.ForgotPasswordPage)
-	mux.HandleFunc("GET /reset-password", authH.ResetPasswordPage)
-	mux.HandleFunc("GET /verify-email", authH.VerifyEmailPage)
 
 	mux.Handle("GET /auth/silent-refresh", refreshRL.Middleware(http.HandlerFunc(authH.SilentRefresh)))
-	mux.Handle("POST /auth/login", loginRL.Middleware(http.HandlerFunc(authH.Login)))
-	mux.Handle("POST /auth/register", registerRL.Middleware(http.HandlerFunc(authH.Register)))
 	mux.Handle("POST /auth/refresh", refreshRL.Middleware(http.HandlerFunc(authH.Refresh)))
-	mux.Handle("POST /auth/forgot-password", forgotRL.Middleware(http.HandlerFunc(authH.ForgotPassword)))
-	mux.Handle("POST /auth/reset-password", resetRL.Middleware(http.HandlerFunc(authH.ResetPassword)))
 
 	// ── Protected routes ──────────────────────────────────────────────────────
 	mux.Handle("POST /auth/logout", authMW(http.HandlerFunc(authH.Logout)))
-	mux.Handle("POST /auth/resend-verification", authMW(http.HandlerFunc(authH.ResendVerification)))
 
-	// Email verification: public GET so users can click directly from their inbox.
-	mux.HandleFunc("GET /auth/verify-email", authH.VerifyEmail)
 	mux.Handle("GET /auth/sessions", verifiedMW(http.HandlerFunc(sessH.ListSessions)))
 	mux.Handle("DELETE /auth/sessions/{id}", verifiedMW(http.HandlerFunc(sessH.RevokeSession)))
 
 	mux.Handle("GET /profile", verifiedMW(http.HandlerFunc(profileH.ProfilePage)))
-	mux.Handle("POST /profile/change-password", verifiedMW(http.HandlerFunc(profileH.ChangePassword)))
-	mux.Handle("POST /profile/set-password", verifiedMW(http.HandlerFunc(profileH.SetPassword)))
 	mux.Handle("POST /profile/delete", verifiedMW(http.HandlerFunc(profileH.DeleteAccount)))
 
-	mux.Handle("GET /dashboard", verifiedMW(http.HandlerFunc(profileH.DashboardPage)))
+	// Dashboard is the public sign-in/setup entry point for the whole site —
+	// it must render correctly for both anonymous and authenticated visitors,
+	// so it uses OptionalAuthenticate (populates the user context when a valid
+	// session exists, but never rejects/redirects when one doesn't) rather
+	// than the hard-reject authMW/verifiedMW used by protected routes.
+	optionalAuthMW := middleware.OptionalAuthenticate(cfg.Queries, cfg.JWTSecret)
+	mux.Handle("GET /dashboard", optionalAuthMW(http.HandlerFunc(profileH.DashboardPage)))
 
 	// ── Global middleware chain ───────────────────────────────────────────────
 	// BodyLimit is innermost so it wraps r.Body before any handler reads it.

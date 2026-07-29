@@ -22,7 +22,6 @@ import (
 	"github.com/softsrv/rowbot/internal/app"
 	"github.com/softsrv/rowbot/internal/db"
 	"github.com/softsrv/rowbot/internal/discord"
-	"github.com/softsrv/rowbot/internal/email"
 	internalhttp "github.com/softsrv/rowbot/internal/http"
 	"github.com/softsrv/rowbot/internal/http/handlers"
 	oauthpkg "github.com/softsrv/rowbot/internal/oauth"
@@ -62,15 +61,12 @@ func main() {
 
 	queries := db.New(pool)
 
-	// ── Email ─────────────────────────────────────────────────────────────────
-	mailer := email.NewSMTPMailer(
-		cfg.SMTPHost, cfg.SMTPPort,
-		cfg.SMTPUsername, cfg.SMTPPassword,
-		cfg.SMTPFromEmail, cfg.SMTPFromName,
-	)
-
 	// ── Services ──────────────────────────────────────────────────────────────
-	authSvc := app.NewAuthService(queries, pool, mailer, app.AuthServiceConfig{
+	// SMTP_* config is intentionally still loaded (see mustLoadConfig) even
+	// though no code path sends email today — Discord OAuth is the sole
+	// account-creation/login path, so there's no registration/verification/
+	// password-reset email to send. It's kept as general infra for future use.
+	authSvc := app.NewAuthService(queries, pool, app.AuthServiceConfig{
 		JWTSecret:      cfg.JWTSecret,
 		AccessExpiry:   cfg.JWTAccessExpiry,
 		RefreshExpiry:  cfg.RefreshTokenExpiry,

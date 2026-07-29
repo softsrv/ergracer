@@ -42,12 +42,14 @@
         </ul>
       </div>
       {{else}}
-      {{block "nav-actions" .}}{{end}}
+      {{block "nav-actions" .}}
+      <a href="/auth/discord/login" class="btn btn-outline btn-xs sm:btn-sm">Login via Discord</a>
+      {{end}}
       {{end}}
     </div>
   </nav>
 
-  <main class="container mx-auto px-4 py-8 max-w-md">
+  <main class="{{block "main-class" .}}container mx-auto px-4 py-8 max-w-md{{end}}">
     {{block "content" .}}{{end}}
   </main>
 </body>

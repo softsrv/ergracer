@@ -45,21 +45,3 @@ func TestCompareTokenHash(t *testing.T) {
 		})
 	}
 }
-
-func TestGenerateVerificationToken(t *testing.T) {
-	t.Parallel()
-
-	raw, hashed, err := auth.GenerateVerificationToken()
-	if err != nil {
-		t.Fatalf("GenerateVerificationToken: %v", err)
-	}
-	if raw == "" || hashed == "" {
-		t.Fatal("expected non-empty raw and hashed tokens")
-	}
-	if raw == hashed {
-		t.Fatal("raw and hashed must differ")
-	}
-	if !auth.CompareTokenHash(raw, hashed) {
-		t.Fatal("CompareTokenHash must return true for matching pair")
-	}
-}

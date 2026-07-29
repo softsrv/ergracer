@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/softsrv/rowbot/internal/app"
+	"github.com/softsrv/rowbot/internal/auth"
 	"github.com/softsrv/rowbot/internal/db"
-	"github.com/softsrv/rowbot/internal/email"
 )
 
 // testDB connects to the database pointed to by TEST_DATABASE_URL.
@@ -36,7 +36,7 @@ func testDB(t *testing.T) *pgxpool.Pool {
 func testAuthService(t *testing.T, pool *pgxpool.Pool) *app.AuthService {
 	t.Helper()
 	q := db.New(pool)
-	return app.NewAuthService(q, pool, &email.NoopMailer{}, app.AuthServiceConfig{
+	return app.NewAuthService(q, pool, app.AuthServiceConfig{
 		JWTSecret:      "integration-test-secret-32-bytes!!!",
 		AccessExpiry:   15 * time.Minute,
 		RefreshExpiry:  720 * time.Hour,
@@ -47,37 +47,25 @@ func testAuthService(t *testing.T, pool *pgxpool.Pool) *app.AuthService {
 	})
 }
 
-func TestIntegration_LoginFlow(t *testing.T) {
-	pool := testDB(t)
-	svc := testAuthService(t, pool)
-	ctx := context.Background()
-
-	const testEmail = "integration@example.com"
-	const testPassword = "correct-password-123"
-
-	// Register.
-	user, err := svc.Register(ctx, testEmail, testPassword)
+// testUser creates a user directly via the OAuth-style no-password path
+// (mirroring how every real account is now provisioned — Discord OAuth is the
+// sole account-creation path) so Refresh/Logout can be exercised without
+// AuthService.Register/Login, which no longer exist.
+func testUser(t *testing.T, pool *pgxpool.Pool, email string) db.User {
+	t.Helper()
+	q := db.New(pool)
+	id, err := uuid.NewV7()
 	if err != nil {
-		t.Fatalf("Register: %v", err)
+		t.Fatalf("uuid.NewV7: %v", err)
 	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
+	user, err := q.CreateUserNoPassword(context.Background(), db.CreateUserNoPasswordParams{
+		ID:    id,
+		Email: email,
 	})
-
-	// Login with correct credentials.
-	result, err := svc.Login(ctx, testEmail, testPassword, app.DeviceMeta{})
 	if err != nil {
-		t.Fatalf("Login: %v", err)
+		t.Fatalf("CreateUserNoPassword: %v", err)
 	}
-	if result.AccessToken == "" || result.RefreshToken == "" {
-		t.Fatal("expected non-empty tokens")
-	}
-
-	// Login with wrong password.
-	_, err = svc.Login(ctx, testEmail, "wrong-password", app.DeviceMeta{})
-	if err != app.ErrInvalidCredentials {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
-	}
+	return user
 }
 
 func TestIntegration_Refresh(t *testing.T) {
@@ -85,17 +73,14 @@ func TestIntegration_Refresh(t *testing.T) {
 	svc := testAuthService(t, pool)
 	ctx := context.Background()
 
-	user, err := svc.Register(ctx, "refresh@example.com", "password123")
-	if err != nil {
-		t.Fatalf("Register: %v", err)
-	}
+	user := testUser(t, pool, "refresh@example.com")
 	t.Cleanup(func() {
 		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
 	})
 
-	result, err := svc.Login(ctx, "refresh@example.com", "password123", app.DeviceMeta{})
+	result, err := svc.Refresh(ctx, mustIssueRefreshToken(t, pool, user.ID), app.DeviceMeta{})
 	if err != nil {
-		t.Fatalf("Login: %v", err)
+		t.Fatalf("Refresh: %v", err)
 	}
 
 	// Refresh returns a new access token but the same refresh token.
@@ -110,12 +95,6 @@ func TestIntegration_Refresh(t *testing.T) {
 		t.Error("access token must be newly issued on each refresh")
 	}
 
-	// Token can be refreshed again without error.
-	_, err = svc.Refresh(ctx, result.RefreshToken, app.DeviceMeta{})
-	if err != nil {
-		t.Errorf("second refresh of same token must succeed, got %v", err)
-	}
-
 	// Revoked token must be rejected.
 	if err := svc.Logout(ctx, result.RefreshToken); err != nil {
 		t.Fatalf("Logout: %v", err)
@@ -126,63 +105,28 @@ func TestIntegration_Refresh(t *testing.T) {
 	}
 }
 
-func TestIntegration_PasswordReset(t *testing.T) {
-	pool := testDB(t)
-	svc := testAuthService(t, pool)
-	ctx := context.Background()
-
-	user, err := svc.Register(ctx, "reset@example.com", "oldpassword123")
-	if err != nil {
-		t.Fatalf("Register: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
-	})
-
-	// Request reset (always nil for email existence check).
-	if err := svc.RequestPasswordReset(ctx, "reset@example.com"); err != nil {
-		t.Fatalf("RequestPasswordReset: %v", err)
-	}
-
-	// Verify invalid token is rejected without needing DB lookup.
-	err = svc.CompletePasswordReset(ctx, "invalid-token", "newpassword123")
-	if err != app.ErrTokenNotFound {
-		t.Errorf("expected ErrTokenNotFound for invalid token, got %v", err)
-	}
-}
-
-func TestIntegration_AccountLockout(t *testing.T) {
-	pool := testDB(t)
-	svc := testAuthService(t, pool)
-	ctx := context.Background()
-
+// mustIssueRefreshToken inserts a refresh token row directly and returns its
+// raw (unhashed) value, letting tests exercise Refresh/Logout without going
+// through a full OAuth login.
+func mustIssueRefreshToken(t *testing.T, pool *pgxpool.Pool, userID uuid.UUID) string {
+	t.Helper()
+	q := db.New(pool)
 	id, err := uuid.NewV7()
 	if err != nil {
 		t.Fatalf("uuid.NewV7: %v", err)
 	}
-	q := db.New(pool)
-	user, err := q.CreateUser(ctx, db.CreateUserParams{
-		ID:           id,
-		Email:        "lockout@example.com",
-		PasswordHash: "$2a$12$placeholder",
+	raw, hashed, err := auth.GenerateRefreshToken()
+	if err != nil {
+		t.Fatalf("generate refresh token: %v", err)
+	}
+	_, err = q.InsertRefreshToken(context.Background(), db.InsertRefreshTokenParams{
+		ID:        id,
+		UserID:    userID,
+		TokenHash: hashed,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(720 * time.Hour), Valid: true},
 	})
 	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
+		t.Fatalf("InsertRefreshToken: %v", err)
 	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE id = $1", user.ID)
-	})
-
-	// Lock the account directly.
-	if err := q.LockAccount(ctx, db.LockAccountParams{
-		ID:          user.ID,
-		LockedUntil: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
-	}); err != nil {
-		t.Fatalf("LockAccount: %v", err)
-	}
-
-	_, err = svc.Login(ctx, "lockout@example.com", "any-password", app.DeviceMeta{})
-	if err != app.ErrAccountLocked {
-		t.Errorf("expected ErrAccountLocked, got %v", err)
-	}
+	return raw
 }

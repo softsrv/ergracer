@@ -37,7 +37,7 @@ func NewSessionHandler(userSvc userServicer, renderer *TemplateRenderer, secure 
 func (h *SessionHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 		return
 	}
 
@@ -89,7 +89,7 @@ func (h *SessionHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 	if cookie, cookieErr := r.Cookie("refresh_token"); cookieErr == nil {
 		if auth.CompareTokenHash(cookie.Value, revoked.TokenHash) {
 			clearAuthCookies(w, h.secure)
-			w.Header().Set("HX-Redirect", "/login")
+			w.Header().Set("HX-Redirect", "/dashboard")
 			w.WriteHeader(http.StatusOK)
 			return
 		}

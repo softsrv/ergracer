@@ -20,9 +20,7 @@ import (
 
 var ErrDiscordUnverifiedEmail = errors.New("discord account has an unverified email")
 var ErrDiscordAlreadyLinkedToOtherUser = errors.New("this Discord account is already linked to a different RowBot account")
-var ErrCannotUnlinkLastLoginMethod = errors.New("cannot unlink Discord: set a password before disconnecting your only login method")
 var ErrConcept2AlreadyLinkedToOtherUser = errors.New("this Concept2 account is already linked to a different RowBot account")
-var ErrCannotUnlinkConcept2LastMethod = errors.New("cannot unlink Concept2: set a password before disconnecting your only login method")
 
 const discordProvider = "discord"
 const concept2Provider = "concept2"
@@ -209,31 +207,6 @@ func (s *OAuthService) LinkDiscord(ctx context.Context, userID uuid.UUID, code s
 	return s.createOAuthIdentity(ctx, s.q, userID, discordProvider, discordUser.ID, discordUser.Username)
 }
 
-// UnlinkDiscord removes the Discord oauth_identities row for the given user.
-// Returns ErrCannotUnlinkLastLoginMethod if the user has no password set.
-func (s *OAuthService) UnlinkDiscord(ctx context.Context, userID uuid.UUID) error {
-	identity, err := s.q.GetOAuthIdentityByUserAndProvider(ctx, db.GetOAuthIdentityByUserAndProviderParams{
-		UserID:   userID,
-		Provider: discordProvider,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
-		}
-		return fmt.Errorf("lookup discord identity: %w", err)
-	}
-
-	user, err := s.q.GetUserByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("get user: %w", err)
-	}
-	if !user.PasswordHash.Valid {
-		return ErrCannotUnlinkLastLoginMethod
-	}
-
-	return s.q.DeleteOAuthIdentity(ctx, identity.ID)
-}
-
 // GetDiscordIdentity returns the Discord oauth identity for the given user.
 func (s *OAuthService) GetDiscordIdentity(ctx context.Context, userID uuid.UUID) (db.OauthIdentity, error) {
 	return s.q.GetOAuthIdentityByUserAndProvider(ctx, db.GetOAuthIdentityByUserAndProviderParams{
@@ -297,7 +270,8 @@ func (s *OAuthService) LinkConcept2(ctx context.Context, userID uuid.UUID, code 
 }
 
 // UnlinkConcept2 removes the Concept2 oauth_identities row for the given user.
-// Returns ErrCannotUnlinkConcept2LastMethod if the user has no password set.
+// Concept2 is never a login method, so disconnecting it carries no lockout
+// risk and is always allowed once an identity is found.
 func (s *OAuthService) UnlinkConcept2(ctx context.Context, userID uuid.UUID) error {
 	identity, err := s.q.GetOAuthIdentityByUserAndProvider(ctx, db.GetOAuthIdentityByUserAndProviderParams{
 		UserID:   userID,
@@ -308,14 +282,6 @@ func (s *OAuthService) UnlinkConcept2(ctx context.Context, userID uuid.UUID) err
 			return nil
 		}
 		return fmt.Errorf("lookup concept2 identity: %w", err)
-	}
-
-	user, err := s.q.GetUserByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("get user: %w", err)
-	}
-	if !user.PasswordHash.Valid {
-		return ErrCannotUnlinkConcept2LastMethod
 	}
 
 	return s.q.DeleteOAuthIdentity(ctx, identity.ID)

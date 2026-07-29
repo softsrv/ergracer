@@ -68,17 +68,15 @@ func registerUIRoutes(mux *http.ServeMux, saved savedResults, byID map[int64]con
 	})
 }
 
-// sendWebhook POSTs result as a webhook payload matching Concept2's
-// documented {"data": {"type": "result-added", "result": {...}}} shape to
+// sendWebhook POSTs result as a webhook payload matching Concept2's real
+// (flat, undocumented — see concept2.Concept2Payload) delivery shape to
 // target.
 func sendWebhook(target string, userID int64, result concept2.Result) (string, error) {
 	payload, err := json.Marshal(map[string]any{
-		"data": map[string]any{
-			"type": "result-added",
-			"result": map[string]any{
-				"id":      result.ID,
-				"user_id": userID,
-			},
+		"type": "result-added",
+		"result": map[string]any{
+			"id":      result.ID,
+			"user_id": userID,
 		},
 	})
 	if err != nil {

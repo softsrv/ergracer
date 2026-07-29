@@ -54,38 +54,40 @@ const (
 	maxTableRows = 22
 )
 
+// The "Regatta Ledger" palette: a deep navy ground with parchment ink for
+// nearly everything, so brass and the flag red read as genuine highlights
+// rather than competing with them. The rule colors below aren't arbitrary
+// greys — they're parchment blended down to near-transparency over the
+// navy paper color (the design's dark-mode ".rule"/".rule-soft"/
+// ".ink-faint" washes), which is what keeps hairlines and dividers reading
+// as muted rather than adding a second, competing highlight color.
 var (
-	colorWhite      = rgb{255, 255, 255}
-	colorLightText  = rgb{221, 232, 250}
-	colorDarkText   = rgb{30, 34, 40}
-	colorMutedText  = rgb{100, 108, 120}
-	colorBg         = rgb{255, 255, 255}
-	colorTableLine  = rgb{225, 229, 235}
-	colorRowShade   = rgb{244, 246, 249}
-	colorHeaderFill = rgb{237, 240, 245}
-	colorHeroBg     = rgb{248, 249, 251}
-
-	// colorPaceSlow/colorPaceFast are the endpoints of the gradient used to
-	// color each split row's pace "chip" (see drawPaceChip): a slow split
-	// is a muted neutral, a fast split is a saturated green.
-	colorPaceSlow = rgb{219, 223, 229}
-	colorPaceFast = rgb{99, 153, 34}
+	colorPaper    = rgb{20, 34, 56}
+	colorInk      = rgb{239, 231, 210}
+	colorInkSoft  = rgb{156, 156, 151}
+	colorInkFaint = rgb{103, 109, 115}
+	colorRule     = rgb{64, 73, 87}
+	colorRuleSoft = rgb{42, 54, 71}
+	colorBrass    = rgb{204, 159, 82}
+	colorFlag     = rgb{226, 88, 74}
 )
 
 type rgb struct {
 	r, g, b int
 }
 
-// RenderResultPNG draws a Concept2 workout result as a PNG "card": a colored
-// header band (sport label and workout type), a row of hero stats pulled
-// out of the summary (time, avg pace, avg watts, calories), a table whose
-// remaining rows — if the workout has splits or intervals — are the
-// per-piece breakdown with a relative-pace chip behind each PACE value, and
-// a closing brand/date footer. The whole card has rounded corners
-// (transparent PNG corners) and a thin border. It returns the PNG-encoded
-// bytes.
+// RenderResultPNG draws a Concept2 workout result as a PNG "card" styled
+// like an engraved boathouse scoreboard plaque: an ivory ground, a masthead
+// with a tracked eyebrow and a serif small-caps sport label, a row of hero
+// stats pulled out of the summary (time, avg pace, avg watts, calories), a
+// ruled table whose remaining rows — if the workout has splits or intervals
+// — are the per-piece breakdown, and a closing brand/date footer. The
+// single fastest piece (by Pace()) is called out in bold with its PACE tick
+// drawn in flag red rather than brass. The whole card has rounded corners
+// (transparent PNG corners), a thin outer border, and an inset rule
+// mimicking a double-ruled plaque edge. It returns the PNG-encoded bytes.
 func RenderResultPNG(result concept2.Result) ([]byte, error) {
-	title, color := sportLabelAndColor(result.Type)
+	title, _ := sportLabelAndColor(result.Type)
 	subtitle := result.WorkoutType
 	if subtitle != "" {
 		subtitle = humanizeWorkoutType(subtitle) + " - " + workoutSubtitleMetric(result)
@@ -116,6 +118,8 @@ func RenderResultPNG(result concept2.Result) ([]byte, error) {
 		}
 	}
 
+	hasPieces := len(pieces) > 0
+
 	rowCount := len(pieces)
 	truncated := false
 	if rowCount > maxTableRows {
@@ -123,13 +127,20 @@ func RenderResultPNG(result concept2.Result) ([]byte, error) {
 		truncated = true
 	}
 
-	// header + hero stats + breathing room + column-header row + per-piece
-	// rows (+ "+N more" line if truncated) + bottom padding + footer.
-	height := headerHeight + heroStatsHeight + tableTopPad + tableHeaderHeight + rowCount*tableRowHeight
-	if truncated {
-		height += tableRowHeight
+	// header + hero stats + footer, plus — only when there are splits or
+	// intervals to show — breathing room, the column-header row, per-piece
+	// rows (+ "+N more" line if truncated), and bottom padding. A result
+	// with no pieces (e.g. JustRow) has no table at all, so its card ends
+	// right after the hero stats band.
+	height := headerHeight + heroStatsHeight
+	if hasPieces {
+		height += tableTopPad + tableHeaderHeight + rowCount*tableRowHeight
+		if truncated {
+			height += tableRowHeight
+		}
+		height += tableBottomPad
 	}
-	height += tableBottomPad + footerHeight
+	height += footerHeight
 
 	dc := gg.NewContext(canvasWidth, height)
 
@@ -140,11 +151,19 @@ func RenderResultPNG(result concept2.Result) ([]byte, error) {
 	dc.DrawRoundedRectangle(0, 0, float64(canvasWidth), float64(height), cardRadius)
 	dc.Clip()
 
-	setColor(dc, colorBg)
+	setColor(dc, colorPaper)
 	dc.DrawRectangle(0, 0, float64(canvasWidth), float64(height))
 	dc.Fill()
 
-	drawHeader(dc, title, subtitle, color)
+	// A thin inset rule just inside the card edge, echoing the
+	// double-ruled border of an engraved plaque.
+	const insetMargin = 10.0
+	setColor(dc, colorRuleSoft)
+	dc.DrawRectangle(insetMargin, insetMargin, float64(canvasWidth)-2*insetMargin, float64(height)-2*insetMargin)
+	dc.SetLineWidth(1)
+	dc.Stroke()
+
+	drawHeader(dc, title, subtitle)
 	drawHeroStats(dc, float64(headerHeight), []heroStat{
 		{"Time", formatDuration(summary.Time)},
 		{"Avg pace", paceString(summary)},
@@ -152,15 +171,17 @@ func RenderResultPNG(result concept2.Result) ([]byte, error) {
 		{"Calories", strconv.Itoa(summary.Calories)},
 	})
 
-	tableTop := float64(headerHeight+heroStatsHeight) + tableTopPad
-	drawSplitsTable(dc, pieces, hasHR, rowCount, truncated, tableTop)
+	if hasPieces {
+		tableTop := float64(headerHeight+heroStatsHeight) + tableTopPad
+		drawSplitsTable(dc, pieces, hasHR, rowCount, truncated, tableTop)
+	}
 
 	drawFooter(dc, float64(height-footerHeight), formatResultDate(result.Date))
 
 	// The border is drawn outside the clip so it isn't itself clipped away
 	// at the very edge.
 	dc.ResetClip()
-	setColor(dc, colorTableLine)
+	setColor(dc, colorRule)
 	dc.DrawRoundedRectangle(0.75, 0.75, float64(canvasWidth)-1.5, float64(height)-1.5, cardRadius-1)
 	dc.SetLineWidth(1.5)
 	dc.Stroke()
@@ -206,44 +227,54 @@ func humanizeWorkoutType(s string) string {
 // subtitle text: full width minus the left and right margins.
 const maxHeaderTextWidth = canvasWidth - 2*marginX
 
-// drawHeader draws the colored header band: a bolded title (the sport
-// label) with a lighter subtitle line below it (the workout type).
-func drawHeader(dc *gg.Context, title, subtitle string, color int) {
-	setColorHex(dc, color)
-	dc.DrawRectangle(0, 0, float64(canvasWidth), headerHeight)
-	dc.Fill()
+// titleSmallCapsRatio sizes the "lower-case" glyphs in the header's faux
+// small-caps title relative to the "upper-case" ones (see
+// drawSmallCapsTracked) — gg can't apply an OpenType smcp feature, so a
+// second, smaller pass at the same baseline is what stands in for it.
+const titleSmallCapsRatio = 0.74
 
+// drawHeader draws the plaque's masthead: a small tracked brass eyebrow,
+// the sport label set as faux small caps in the vendored Crimson Text Bold
+// (the nearest open serif match, given gg's plain glyph rendering, to the
+// Georgia small-caps the design calls for), and — if present — a muted
+// monospace subtitle line below.
+func drawHeader(dc *gg.Context, title, subtitle string) {
 	textX := float64(marginX)
 
-	titleFace := loadFace(fontBold, 26)
-	dc.SetFontFace(titleFace)
-	setColor(dc, colorWhite)
-	displayTitle := title
-	if w, _ := dc.MeasureString(displayTitle); w > maxHeaderTextWidth {
-		// Text is too wide for the default size — try a smaller face
-		// before resorting to truncation.
-		titleFace = loadFace(fontBold, 22)
-		dc.SetFontFace(titleFace)
-		if w, _ := dc.MeasureString(displayTitle); w > maxHeaderTextWidth {
-			displayTitle = truncateToWidth(dc, displayTitle, maxHeaderTextWidth)
-		}
+	eyebrowFace := loadFace(fontMonoBold, 10)
+	dc.SetFontFace(eyebrowFace)
+	setColor(dc, colorBrass)
+	drawTracked(dc, "CONCEPT2 RESULT", textX, float64(headerHeight)*0.26, 0.5, 2.2)
+
+	titleSize := 26.0
+	if smallCapsTrackedWidth(dc, title, 1.2, titleSize) > maxHeaderTextWidth {
+		// Text is too wide for the default size — try a smaller size
+		// before resorting to a plain truncated fallback.
+		titleSize = 22.0
+	}
+	setColor(dc, colorInk)
+	if smallCapsTrackedWidth(dc, title, 1.2, titleSize) > maxHeaderTextWidth {
+		dc.SetFontFace(loadFace(fontSerifBold, titleSize))
+		display := truncateToWidth(dc, strings.ToUpper(title), maxHeaderTextWidth)
+		drawTracked(dc, display, textX, float64(headerHeight)*0.56, 0.5, 1.2)
+	} else if subtitle == "" {
+		drawSmallCapsTracked(dc, title, textX, float64(headerHeight)*0.62, 1.2, titleSize)
+	} else {
+		drawSmallCapsTracked(dc, title, textX, float64(headerHeight)*0.56, 1.2, titleSize)
 	}
 
 	if subtitle == "" {
-		dc.DrawStringAnchored(displayTitle, textX, float64(headerHeight)/2, 0, 0.5)
 		return
 	}
 
-	dc.DrawStringAnchored(displayTitle, textX, float64(headerHeight)*0.38, 0, 0.5)
-
-	subFace := loadFace(fontRegular, 13)
+	subFace := loadFace(fontMono, 13)
 	dc.SetFontFace(subFace)
-	setColor(dc, colorLightText)
+	setColor(dc, colorInkSoft)
 	displaySubtitle := subtitle
 	if w, _ := dc.MeasureString(displaySubtitle); w > maxHeaderTextWidth {
 		displaySubtitle = truncateToWidth(dc, displaySubtitle, maxHeaderTextWidth)
 	}
-	dc.DrawStringAnchored(displaySubtitle, textX, float64(headerHeight)*0.68, 0, 0.5)
+	dc.DrawStringAnchored(displaySubtitle, textX, float64(headerHeight)*0.84, 0, 0.5)
 }
 
 // truncateToWidth shortens s (using the font face currently set on dc) to
@@ -261,17 +292,116 @@ func truncateToWidth(dc *gg.Context, s string, maxWidth float64) string {
 	return ellipsis
 }
 
+// drawTracked draws s left-to-right starting at (x, y), inserting extra
+// letter-spacing (tracking, in pixels) after each rune; ay is the vertical
+// anchor (0 top .. 1 bottom, matching gg.DrawStringAnchored's ay). gg has no
+// built-in letter-spacing, and a touch of tracking on upper-case labels is
+// what makes the masthead and table headers read as engraved rather than
+// merely capitalized.
+func drawTracked(dc *gg.Context, s string, x, y, ay, tracking float64) {
+	cx := x
+	for _, r := range s {
+		ch := string(r)
+		dc.DrawStringAnchored(ch, cx, y, 0, ay)
+		w, _ := dc.MeasureString(ch)
+		cx += w + tracking
+	}
+}
+
+// trackedWidth returns the total pixel width drawTracked would consume for
+// s at the given tracking, using the font face currently set on dc.
+func trackedWidth(dc *gg.Context, s string, tracking float64) float64 {
+	w := 0.0
+	n := 0
+	for _, r := range s {
+		cw, _ := dc.MeasureString(string(r))
+		w += cw
+		n++
+	}
+	if n > 1 {
+		w += tracking * float64(n-1)
+	}
+	return w
+}
+
+// drawTrackedRight draws s tracked (see drawTracked) so that it ends at
+// rightX — the right-aligned equivalent used for the table's column
+// headers.
+func drawTrackedRight(dc *gg.Context, s string, rightX, y, ay, tracking float64) {
+	drawTracked(dc, s, rightX-trackedWidth(dc, s, tracking), y, ay, tracking)
+}
+
+// drawTrackedCentered draws s tracked (see drawTracked) centered on
+// centerX — used for the hero stats band's caption labels.
+func drawTrackedCentered(dc *gg.Context, s string, centerX, y, ay, tracking float64) {
+	drawTracked(dc, s, centerX-trackedWidth(dc, s, tracking)/2, y, ay, tracking)
+}
+
+// drawSmallCapsTracked draws s as faux small caps at (x, y) (vertically
+// centered, left-aligned): runes that are already upper-case (or aren't
+// letters at all) are drawn in fontSerifBold at fullSize; lower-case runes
+// are upper-cased and drawn at fullSize*titleSmallCapsRatio. Both passes
+// share the same baseline anchor, so e.g. "BikeErg" reads as "BIKE" in full
+// caps with a smaller "ERG" beside it, the classic small-caps treatment for
+// a mixed-case brand name.
+func drawSmallCapsTracked(dc *gg.Context, s string, x, y, tracking, fullSize float64) {
+	fullFace := loadFace(fontSerifBold, fullSize)
+	smallFace := loadFace(fontSerifBold, fullSize*titleSmallCapsRatio)
+
+	cx := x
+	for _, r := range s {
+		face := fullFace
+		ch := r
+		if unicode.IsLower(r) {
+			face = smallFace
+			ch = unicode.ToUpper(r)
+		}
+		dc.SetFontFace(face)
+		str := string(ch)
+		dc.DrawStringAnchored(str, cx, y, 0, 0.5)
+		w, _ := dc.MeasureString(str)
+		cx += w + tracking
+	}
+}
+
+// smallCapsTrackedWidth returns the total width drawSmallCapsTracked would
+// consume for s, for the overflow check that picks the title's font size.
+func smallCapsTrackedWidth(dc *gg.Context, s string, tracking, fullSize float64) float64 {
+	fullFace := loadFace(fontSerifBold, fullSize)
+	smallFace := loadFace(fontSerifBold, fullSize*titleSmallCapsRatio)
+
+	w := 0.0
+	n := 0
+	for _, r := range s {
+		face := fullFace
+		ch := r
+		if unicode.IsLower(r) {
+			face = smallFace
+			ch = unicode.ToUpper(r)
+		}
+		dc.SetFontFace(face)
+		cw, _ := dc.MeasureString(string(ch))
+		w += cw
+		n++
+	}
+	if n > 1 {
+		w += tracking * float64(n-1)
+	}
+	return w
+}
+
 // heroStat is one label/value pair drawn in the hero stats band.
 type heroStat struct {
 	label string
 	value string
 }
 
-// drawHeroStats draws a row of evenly-spaced stat cards (muted caption
-// label above, large bold value below), separated by hairline dividers, on
-// a light band starting at top. This pulls the headline numbers (time, avg
-// pace, avg watts, calories) out of the table below so they're readable at
-// a glance instead of buried in a bolded row of six columns.
+// drawHeroStats draws a row of evenly-spaced stat gauges (muted tracked
+// monospace caption above, large bold monospace value below), separated by
+// hairline dividers and bounded top and bottom by rules — a ruled ledger
+// section rather than a shaded band. This pulls the headline numbers (time,
+// avg pace, avg watts, calories) out of the table below so they're readable
+// at a glance instead of buried in a bolded row of six columns.
 func drawHeroStats(dc *gg.Context, top float64, stats []heroStat) {
 	if len(stats) == 0 {
 		return
@@ -280,17 +410,18 @@ func drawHeroStats(dc *gg.Context, top float64, stats []heroStat) {
 	contentWidth := float64(canvasWidth - 2*marginX)
 	cardWidth := contentWidth / float64(len(stats))
 
-	setColor(dc, colorHeroBg)
-	dc.DrawRectangle(float64(marginX), top, contentWidth, heroStatsHeight)
-	dc.Fill()
+	setColor(dc, colorRule)
+	dc.DrawLine(float64(marginX), top, float64(canvasWidth-marginX), top)
+	dc.SetLineWidth(1)
+	dc.Stroke()
 
-	labelFace := loadFace(fontBold, 11)
-	valueFace := loadFace(fontBold, 22)
+	labelFace := loadFace(fontMonoBold, 10)
+	valueFace := loadFace(fontMonoBold, 22)
 
 	for i, s := range stats {
 		cardX := float64(marginX) + float64(i)*cardWidth
 		if i > 0 {
-			setColor(dc, colorTableLine)
+			setColor(dc, colorRule)
 			dc.DrawLine(cardX, top+14, cardX, top+heroStatsHeight-14)
 			dc.SetLineWidth(1)
 			dc.Stroke()
@@ -298,15 +429,15 @@ func drawHeroStats(dc *gg.Context, top float64, stats []heroStat) {
 		centerX := cardX + cardWidth/2
 
 		dc.SetFontFace(labelFace)
-		setColor(dc, colorMutedText)
-		dc.DrawStringAnchored(strings.ToUpper(s.label), centerX, top+28, 0.5, 0.5)
+		setColor(dc, colorInkFaint)
+		drawTrackedCentered(dc, strings.ToUpper(s.label), centerX, top+28, 0.5, 1.3)
 
 		dc.SetFontFace(valueFace)
-		setColor(dc, colorDarkText)
+		setColor(dc, colorInk)
 		dc.DrawStringAnchored(s.value, centerX, top+56, 0.5, 0.5)
 	}
 
-	setColor(dc, colorTableLine)
+	setColor(dc, colorRule)
 	dc.DrawLine(float64(marginX), top+heroStatsHeight, float64(canvasWidth-marginX), top+heroStatsHeight)
 	dc.SetLineWidth(1)
 	dc.Stroke()
@@ -342,21 +473,23 @@ type splitsColumn struct {
 
 // drawSplitsTable draws the column-header row (starting at headerTop), then
 // up to rowCount per-piece rows (plus a "+N more" line if truncated).
-// pieces may be empty (e.g. a JustRow result with no split/interval
-// breakdown), in which case the table is just the header row. Each
-// per-piece row's PACE cell gets a filled "chip" behind the value, sized
-// and colored by how fast that split was relative to the others in pieces.
+// Callers must not invoke this with an empty pieces slice (e.g. a JustRow
+// result with no split/interval breakdown) — RenderResultPNG skips the
+// table, including its column headings, entirely in that case. Rows are
+// separated by hairline rules rather than zebra shading; the single fastest
+// piece (by Pace()) gets bold text and its PACE cell's tick drawn in flag
+// red instead of brass.
 func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCount int, truncated bool, headerTop float64) {
 	columns := []splitsColumn{
-		{"DIST", 1.3, func(p concept2.Split) string { return formatDistance(p.Distance) }},
-		{"TIME", 1.15, func(p concept2.Split) string { return formatDuration(p.Time) }},
-		{"PACE", 1.15, paceString},
-		{"WATTS", 0.9, wattsString},
-		{"CAL", 0.9, func(p concept2.Split) string { return strconv.Itoa(p.Calories) }},
-		{"S/M", 0.9, func(p concept2.Split) string { return strconv.Itoa(p.StrokeRate) }},
+		{"TIME", 1.05, func(p concept2.Split) string { return formatDuration(p.Time) }},
+		{"DIST", 1.05, func(p concept2.Split) string { return formatDistance(p.Distance) }},
+		{"PACE", 1.45, paceString},
+		{"WATTS", 0.85, wattsString},
+		{"CAL", 0.8, func(p concept2.Split) string { return strconv.Itoa(p.Calories) }},
+		{"S/M", 0.8, func(p concept2.Split) string { return strconv.Itoa(p.StrokeRate) }},
 	}
 	if hasHR {
-		columns = append(columns, splitsColumn{"HR", 0.9, func(p concept2.Split) string {
+		columns = append(columns, splitsColumn{"HR", 0.85, func(p concept2.Split) string {
 			if p.HeartRate != nil {
 				return strconv.Itoa(p.HeartRate.Average)
 			}
@@ -387,27 +520,28 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 		x += colWidths[i]
 	}
 
-	setColor(dc, colorHeaderFill)
-	dc.DrawRectangle(float64(marginX), headerTop, contentWidth, tableHeaderHeight)
-	dc.Fill()
-
-	headerFace := loadFace(fontMonoBold, 13)
+	headerFace := loadFace(fontMonoBold, 10)
 	dc.SetFontFace(headerFace)
-	setColor(dc, colorMutedText)
+	setColor(dc, colorBrass)
 	headerCenterY := headerTop + tableHeaderHeight/2
 	for i, c := range columns {
 		cx := colX[i] + colWidths[i] - 8
-		dc.DrawStringAnchored(c.label, cx, headerCenterY, 1, 0.5)
+		drawTrackedRight(dc, c.label, cx, headerCenterY, 0.5, 1.2)
 	}
 
+	setColor(dc, colorBrass)
+	dc.DrawLine(float64(marginX), headerTop+tableHeaderHeight, float64(canvasWidth-marginX), headerTop+tableHeaderHeight)
+	dc.SetLineWidth(1)
+	dc.Stroke()
+
 	rowFace := loadFace(fontMono, 14)
-	dc.SetFontFace(rowFace)
+	rowFaceBold := loadFace(fontMonoBold, 14)
 
 	rowsTop := headerTop + tableHeaderHeight
 
-	// Pace range across the drawn rows, used to size/color each row's pace
-	// chip (see drawPaceChip). minPace tracks the fastest (smallest, since
-	// pace is time-per-500m) split; maxPace the slowest.
+	// Pace range across the drawn rows, used to size each row's pace tick
+	// and to identify the single fastest piece. minPace tracks the fastest
+	// (smallest, since pace is time-per-500m) split; maxPace the slowest.
 	var minPace, maxPace int64
 	if paceColIdx >= 0 {
 		for r := 0; r < rowCount; r++ {
@@ -427,104 +561,104 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 	for r := 0; r < rowCount; r++ {
 		p := pieces[r]
 		rowY := rowsTop + float64(r)*tableRowHeight
+		rowCenterY := rowY + tableRowHeight/2
 
-		if r%2 == 1 {
-			setColor(dc, colorRowShade)
-			dc.DrawRectangle(float64(marginX), rowY, contentWidth, tableRowHeight)
-			dc.Fill()
+		if r > 0 {
+			setColor(dc, colorRuleSoft)
+			dc.DrawLine(float64(marginX), rowY, float64(canvasWidth-marginX), rowY)
+			dc.SetLineWidth(1)
+			dc.Stroke()
 		}
 
 		pace := p.Pace()
 		frac := 0.0
+		isFastest := false
 		if paceColIdx >= 0 && pace > 0 {
 			if maxPace > minPace {
 				frac = float64(maxPace-pace) / float64(maxPace-minPace)
+				isFastest = pace == minPace
 			} else {
+				// Every drawn split has the same pace — there's no single
+				// standout piece to flag.
 				frac = 1.0
 			}
-			drawPaceChip(dc, colX[paceColIdx], colWidths[paceColIdx], rowY, frac)
 		}
 
-		dc.SetFontFace(rowFace)
-		rowCenterY := rowY + tableRowHeight/2
+		if isFastest {
+			dc.SetFontFace(rowFaceBold)
+		} else {
+			dc.SetFontFace(rowFace)
+		}
+
 		for i, c := range columns {
 			val := c.value(p)
 			cx := colX[i] + colWidths[i] - 8
-			// The fastest splits get a saturated pace chip dark enough
-			// that the default dark text loses contrast — flip to white
-			// for those cells only.
-			textColor := colorDarkText
-			if i == paceColIdx && pace > 0 && frac > 0.72 {
-				textColor = colorWhite
+
+			if i == paceColIdx && pace > 0 {
+				textW, _ := dc.MeasureString(val)
+				tickColor := colorBrass
+				if isFastest {
+					tickColor = colorFlag
+				}
+				drawPaceTick(dc, cx-textW-8, rowCenterY, frac, tickColor)
 			}
-			setColor(dc, textColor)
+
+			setColor(dc, colorInk)
 			dc.DrawStringAnchored(val, cx, rowCenterY, 1, 0.5)
 		}
 	}
 
 	if truncated {
 		moreY := rowsTop + float64(rowCount)*tableRowHeight
-		setColor(dc, colorMutedText)
-		moreFace := loadFace(fontRegular, 13)
+		setColor(dc, colorInkSoft)
+		moreFace := loadFace(fontMono, 13)
 		dc.SetFontFace(moreFace)
 		more := fmt.Sprintf("+ %d more", len(pieces)-rowCount)
 		dc.DrawStringAnchored(more, float64(marginX), moreY+tableRowHeight/2, 0, 0.5)
 	}
 }
 
-// drawPaceChip draws a filled, rounded bar behind a row's PACE value,
-// right-aligned within the PACE column like the value text itself. frac is
-// 0 (slowest split in the table) to 1 (fastest); it drives both the chip's
-// width (a faster split's bar reaches further left) and its color (from
-// colorPaceSlow to colorPaceFast), so a glance down the column shows the
-// pacing trend without reading every split time.
-func drawPaceChip(dc *gg.Context, colStartX, colWidth, rowY, frac float64) {
-	const minChipFrac = 0.22
-	chipFrac := minChipFrac + frac*(1-minChipFrac)
-	chipW := colWidth*chipFrac - 8
-	if chipW < 10 {
-		chipW = 10
-	}
-	chipH := tableRowHeight - 10.0
-	chipX := colStartX + colWidth - 8 - chipW
-	chipY := rowY + 5
+// drawPaceTick draws a thin ruled tick to the left of a row's PACE value —
+// a faint full-width track with a filled portion sized by frac (0 slowest
+// drawn split .. 1 fastest) — so a glance down the column shows the pacing
+// trend the way a filled chip would, without a heavy colored block
+// competing with the ledger's ruled-paper restraint. fillColor is brass for
+// ordinary rows, or flag red for the fastest.
+func drawPaceTick(dc *gg.Context, rightX, centerY, frac float64, fillColor rgb) {
+	const trackW, trackH = 36.0, 3.0
+	const minFillFrac = 0.18
 
-	setColor(dc, lerpColor(colorPaceSlow, colorPaceFast, frac))
-	dc.DrawRoundedRectangle(chipX, chipY, chipW, chipH, 4)
+	trackX := rightX - trackW
+	trackY := centerY - trackH/2
+
+	setColor(dc, colorRuleSoft)
+	dc.DrawRectangle(trackX, trackY, trackW, trackH)
+	dc.Fill()
+
+	fillFrac := minFillFrac + frac*(1-minFillFrac)
+	setColor(dc, fillColor)
+	dc.DrawRectangle(trackX, trackY, trackW*fillFrac, trackH)
 	dc.Fill()
 }
 
-// lerpColor linearly interpolates between two colors; t is clamped to
-// [0, 1].
-func lerpColor(a, b rgb, t float64) rgb {
-	if t < 0 {
-		t = 0
-	}
-	if t > 1 {
-		t = 1
-	}
-	return rgb{
-		r: a.r + int(float64(b.r-a.r)*t),
-		g: a.g + int(float64(b.g-a.g)*t),
-		b: a.b + int(float64(b.b-a.b)*t),
-	}
-}
-
 // drawFooter draws the closing brand/date strip: a hairline divider, the
-// "RowBot" brand mark on the left, and the formatted result date (if any)
-// on the right.
+// bold "RowBot" brand mark on the left, and the formatted result date (if
+// any) on the right.
 func drawFooter(dc *gg.Context, top float64, dateLabel string) {
-	setColor(dc, colorTableLine)
+	setColor(dc, colorRule)
 	dc.DrawLine(float64(marginX), top, float64(canvasWidth-marginX), top)
 	dc.SetLineWidth(1)
 	dc.Stroke()
 
-	face := loadFace(fontRegular, 12)
-	dc.SetFontFace(face)
-	setColor(dc, colorMutedText)
 	centerY := top + footerHeight/2
+
+	dc.SetFontFace(loadFace(fontMonoBold, 12))
+	setColor(dc, colorInk)
 	dc.DrawStringAnchored("RowBot", float64(marginX), centerY, 0, 0.5)
+
 	if dateLabel != "" {
+		dc.SetFontFace(loadFace(fontMono, 12))
+		setColor(dc, colorInkFaint)
 		dc.DrawStringAnchored(dateLabel, float64(canvasWidth-marginX), centerY, 1, 0.5)
 	}
 }
@@ -551,15 +685,6 @@ func setColor(dc *gg.Context, c rgb) {
 	dc.SetRGB255(c.r, c.g, c.b)
 }
 
-// setColorHex sets the drawing color from a 0xRRGGBB packed int, as
-// returned by sportLabelAndColor.
-func setColorHex(dc *gg.Context, hex int) {
-	r := (hex >> 16) & 0xFF
-	g := (hex >> 8) & 0xFF
-	b := hex & 0xFF
-	dc.SetRGB255(r, g, b)
-}
-
 // sportLabelAndColor returns the short display label and brand color (as a
 // packed 0xRRGGBB int) for a given Concept2 activity type. It covers all 10
 // values Concept2's Add Result API documents for concept2.Result.Type
@@ -584,6 +709,13 @@ func setColorHex(dc *gg.Context, hex int) {
 //   - Paddle (teal 0x2FA89A) and MultiErg (purple 0x8B5FBF) are distinct
 //     enough product categories to get their own accent colors rather than
 //     being folded into another family.
+//
+// The color is currently unused by RenderResultPNG — the "Regatta Ledger"
+// design deliberately stays to a fixed navy/brass/flag-red palette rather
+// than tinting each card by sport — but the mapping is kept (and tested)
+// since it's part of this function's documented contract and may still be
+// useful to callers outside this package (e.g. a Discord embed's side
+// color).
 //
 // Any other non-empty, undocumented type falls back to the type itself with
 // its first letter uppercased, using the default rowing blue; an empty type
