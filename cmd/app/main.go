@@ -61,6 +61,11 @@ func main() {
 
 	queries := db.New(pool)
 
+	// ── Background context (token cleanup + rate-limiter/cache sweepers) ─────
+	// cleanupCtx is cancelled after the HTTP server drains, giving background
+	// goroutines a clean signal to stop without racing active requests.
+	cleanupCtx, stopCleanup := context.WithCancel(context.Background())
+
 	// ── Services ──────────────────────────────────────────────────────────────
 	// SMTP_* config is intentionally still loaded (see mustLoadConfig) even
 	// though no code path sends email today — Discord OAuth is the sole
@@ -142,7 +147,7 @@ func main() {
 
 	var oauthSvc *app.OAuthService
 	if discordClient != nil || concept2Client != nil {
-		oauthSvc = app.NewOAuthService(queries, pool, discordClient, concept2Client, encrypter, authSvc)
+		oauthSvc = app.NewOAuthService(cleanupCtx, queries, pool, discordClient, concept2Client, encrypter, authSvc)
 	}
 
 	var rowingSvc *app.RowingService
@@ -189,11 +194,6 @@ func main() {
 	}
 
 	renderer := handlers.NewTemplateRenderer(baseTmpl, web.FS, "templates")
-
-	// ── Background context (token cleanup + rate-limiter sweepers) ────────────
-	// cleanupCtx is cancelled after the HTTP server drains, giving background
-	// goroutines a clean signal to stop without racing active requests.
-	cleanupCtx, stopCleanup := context.WithCancel(context.Background())
 
 	// ── Router ────────────────────────────────────────────────────────────────
 	handler := internalhttp.NewRouter(cleanupCtx, internalhttp.RouterConfig{

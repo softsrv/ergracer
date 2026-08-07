@@ -31,3 +31,6 @@ DELETE FROM users WHERE id = $1;
 INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
 VALUES ($1, $2, NULL, true, NOW(), NOW())
 RETURNING *;
+
+-- name: SetSetupProgress :exec
+UPDATE users SET setup_progress = $2, updated_at = NOW() WHERE id = $1;

@@ -147,6 +147,45 @@ func TestSilentRefresh_FailedRefreshRedirectsToDashboard(t *testing.T) {
 	}
 }
 
+// TestSilentRefresh_FallsBackWhenFirstCookieIsStale reproduces a browser
+// still holding two "refresh_token" cookies at once — a stale one left over
+// from before the cookie's Path changed from /auth to /, alongside the
+// current one. RFC 6265 sends the more specific path first, so this is the
+// cookie order net/http actually hands the handler; the fix must succeed
+// using the second (current) value rather than failing outright on the
+// first (stale) one.
+func TestSilentRefresh_FallsBackWhenFirstCookieIsStale(t *testing.T) {
+	t.Parallel()
+	var triedValues []string
+	stub := &stubAuthService{
+		refreshFn: func(_ context.Context, raw string, _ app.DeviceMeta) (app.TokenResult, error) {
+			triedValues = append(triedValues, raw)
+			if raw == "stale-legacy-value" {
+				return app.TokenResult{}, app.ErrTokenNotFound
+			}
+			return okTokens(true), nil
+		},
+	}
+	h := handlers.NewAuthHandler(stub, newTestRenderer(t), false, 0)
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/silent-refresh?next=/profile", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "stale-legacy-value"})
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "current-value"})
+	rr := httptest.NewRecorder()
+	h.SilentRefresh(rr, req)
+
+	if got := rr.Header().Get("Location"); got != "/profile" {
+		t.Errorf("redirect = %q, want /profile (i.e. it succeeded)", got)
+	}
+	if cookieByName(rr.Result().Cookies(), "access_token") == nil {
+		t.Error("access_token cookie not set — refresh did not actually succeed")
+	}
+	want := []string{"stale-legacy-value", "current-value"}
+	if len(triedValues) != len(want) || triedValues[0] != want[0] || triedValues[1] != want[1] {
+		t.Errorf("tried values = %v, want %v (both, in order)", triedValues, want)
+	}
+}
+
 func TestSilentRefresh_SuccessRedirectsToNext(t *testing.T) {
 	t.Parallel()
 	stub := &stubAuthService{

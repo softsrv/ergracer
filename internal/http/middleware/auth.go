@@ -27,14 +27,29 @@ func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr := extractToken(r)
-			if tokenStr == "" {
-				respondUnauthorized(w, r)
-				return
+
+			var claims *auth.Claims
+			if tokenStr != "" {
+				var err error
+				claims, err = auth.ValidateAccessToken(tokenStr, jwtSecret)
+				if err != nil && !errors.Is(err, auth.ErrTokenExpired) {
+					// Present but invalid for some other reason (bad signature,
+					// malformed, wrong issuer) — never worth a refresh attempt.
+					respondUnauthorized(w, r)
+					return
+				}
 			}
 
-			claims, err := auth.ValidateAccessToken(tokenStr, jwtSecret)
-			if err != nil {
-				if errors.Is(err, auth.ErrTokenExpired) && r.Header.Get("HX-Request") == "" {
+			// claims is nil here for two different reasons, treated identically:
+			// no access_token cookie was sent at all, or one was sent but
+			// ValidateAccessToken rejected it as expired. In practice the first
+			// case is the common one, not the second — setTokenCookies sets the
+			// cookie's own Expires to the JWT's exp, so once that time passes
+			// most browsers simply stop sending the cookie rather than keep
+			// sending an expired one. Both cases get the same chance to recover
+			// via the refresh token before giving up.
+			if claims == nil {
+				if r.Header.Get("HX-Request") == "" {
 					// For full-page navigations, attempt a silent refresh instead of
 					// sending the user to /login — the refresh token may still be valid.
 					if _, cookieErr := r.Cookie("refresh_token"); cookieErr == nil {
@@ -42,9 +57,19 @@ func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http
 						http.Redirect(w, r, target, http.StatusFound)
 						return
 					}
-				}
-				if errors.Is(err, auth.ErrTokenExpired) {
+				} else {
+					// For HTMX requests, fire the token-expired event and stop —
+					// app.js's listener attempts a silent refresh and replays the
+					// element that triggered this request. This must NOT also set
+					// HX-Redirect (what respondUnauthorized below does): htmx
+					// processes both headers from the same response in one pass,
+					// firing the trigger and then immediately, synchronously,
+					// following the redirect — which always wins the race against
+					// that async refresh and sends the user to "/" regardless of
+					// whether the refresh would have succeeded.
 					w.Header().Set("HX-Trigger", "token-expired")
+					w.WriteHeader(http.StatusUnauthorized)
+					return
 				}
 				respondUnauthorized(w, r)
 				return
@@ -61,45 +86,6 @@ func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http
 			if err != nil {
 				slog.WarnContext(r.Context(), "auth: get user by id", "user_id", userID, "error", err)
 				respondUnauthorized(w, r)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), userContextKey{}, user)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-// OptionalAuthenticate is like Authenticate, but never rejects the request —
-// a missing, expired, or invalid token simply leaves the context unpopulated
-// (UserFromContext returns ok=false) instead of redirecting. For public pages
-// that render differently for signed-in vs. anonymous visitors (e.g. the
-// dashboard's setup checklist), rather than pages that require a session.
-func OptionalAuthenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tokenStr := extractToken(r)
-			if tokenStr == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			claims, err := auth.ValidateAccessToken(tokenStr, jwtSecret)
-			if err != nil {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			userID, err := uuid.Parse(claims.Subject)
-			if err != nil {
-				slog.WarnContext(r.Context(), "optional auth: invalid user id in token claims", "subject", claims.Subject, "error", err)
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			user, err := queries.GetUserByID(r.Context(), userID)
-			if err != nil {
-				next.ServeHTTP(w, r)
 				return
 			}
 
@@ -126,34 +112,15 @@ func extractToken(r *http.Request) string {
 	return ""
 }
 
-// RequireEmailVerified rejects requests from authenticated users whose email
-// address has not yet been verified, redirecting them to /verify-email.
-// Must be applied after Authenticate (which populates the user context).
-func RequireEmailVerified(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, ok := UserFromContext(r.Context())
-		if !ok || !user.EmailVerified {
-			if r.Header.Get("HX-Request") == "true" {
-				w.Header().Set("HX-Redirect", "/verify-email")
-				w.WriteHeader(http.StatusForbidden)
-				return
-			}
-			http.Redirect(w, r, "/verify-email", http.StatusSeeOther)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func respondUnauthorized(w http.ResponseWriter, r *http.Request) {
-	// /login no longer exists — Discord OAuth via /dashboard is the sole sign-in
-	// entry point, so an unauthenticated visitor hitting a protected route is
-	// sent there instead.
+	// /login no longer exists, and /dashboard itself now requires a session —
+	// so the landing page (with its Discord OAuth "Get Started" link) is the
+	// sole sign-in entry point an unauthenticated visitor can be sent to.
 	// For HTMX requests, redirect via header so the partial swap works.
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/dashboard")
+		w.Header().Set("HX-Redirect", "/")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

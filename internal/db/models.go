@@ -26,6 +26,7 @@ type DiscordGuildSetting struct {
 	SetByUserID     string             `json:"set_by_user_id"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	ChannelName     string             `json:"channel_name"`
 }
 
 type DiscordRegistration struct {
@@ -100,4 +101,5 @@ type User struct {
 	LockedUntil         pgtype.Timestamptz `json:"locked_until"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	SetupProgress       int32              `json:"setup_progress"`
 }

@@ -50,14 +50,14 @@ func (h *AuthHandler) SilentRefresh(w http.ResponseWriter, r *http.Request) {
 		next = "/dashboard"
 	}
 
-	cookie, err := r.Cookie("refresh_token")
-	if err != nil {
+	candidates := refreshTokenCandidates(r)
+	if len(candidates) == 0 {
 		http.Redirect(w, r, "/dashboard", http.StatusSeeOther)
 		return
 	}
 
 	meta := h.deviceMeta(r)
-	result, err := h.auth.Refresh(r.Context(), cookie.Value, meta)
+	result, err := h.tryRefresh(r.Context(), candidates, meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "silent refresh failed", "error", err)
 		clearAuthCookies(w, h.secure)
@@ -70,8 +70,8 @@ func (h *AuthHandler) SilentRefresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie("refresh_token"); err == nil {
-		if logoutErr := h.auth.Logout(r.Context(), cookie.Value); logoutErr != nil {
+	for _, rawToken := range refreshTokenCandidates(r) {
+		if logoutErr := h.auth.Logout(r.Context(), rawToken); logoutErr != nil {
 			slog.WarnContext(r.Context(), "logout: revoke refresh token", "error", logoutErr)
 		}
 	}
@@ -80,14 +80,14 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("refresh_token")
-	if err != nil {
+	candidates := refreshTokenCandidates(r)
+	if len(candidates) == 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	meta := h.deviceMeta(r)
-	result, err := h.auth.Refresh(r.Context(), cookie.Value, meta)
+	result, err := h.tryRefresh(r.Context(), candidates, meta)
 	if err != nil {
 		slog.WarnContext(r.Context(), "token refresh failed", "error", err)
 		clearAuthCookies(w, h.secure)
@@ -97,6 +97,23 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	h.setTokenCookies(w, result)
 	w.WriteHeader(http.StatusOK)
+}
+
+// tryRefresh attempts app.AuthService.Refresh with each candidate raw
+// refresh-token value in turn, returning the first success. Normally there's
+// only one candidate; see refreshTokenCandidates for why there can be more,
+// and ErrTokenNotFound below for why trying each one is safe — a lookup miss
+// on one candidate has no side effect that could interfere with the next.
+func (h *AuthHandler) tryRefresh(ctx context.Context, candidates []string, meta app.DeviceMeta) (app.TokenResult, error) {
+	var result app.TokenResult
+	var err error
+	for _, rawToken := range candidates {
+		result, err = h.auth.Refresh(ctx, rawToken, meta)
+		if err == nil {
+			return result, nil
+		}
+	}
+	return app.TokenResult{}, err
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

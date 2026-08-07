@@ -15,6 +15,13 @@ const (
 	discordAuthorizeURL = "https://discord.com/oauth2/authorize"
 	discordTokenURL     = "https://discord.com/api/oauth2/token"
 	discordUserURL      = "https://discord.com/api/users/@me"
+	discordGuildsURL    = "https://discord.com/api/users/@me/guilds"
+
+	// discordScope requests "guilds" in addition to the identify/email scopes
+	// already in use so we can later ask Discord which guilds the user
+	// administers (GetAdminGuilds in the OAuth service). This does mean
+	// existing sessions must re-consent once to pick up the new scope.
+	discordScope = "identify email guilds"
 )
 
 type DiscordUser struct {
@@ -24,9 +31,26 @@ type DiscordUser struct {
 	Verified bool   `json:"verified"`
 }
 
-type discordTokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
+// DiscordGuild is one entry from GET /users/@me/guilds — a guild the user
+// belongs to, along with their permissions in it. Permissions is a numeric
+// bitfield here (unlike some other Discord API surfaces, e.g. interaction
+// payloads, which encode permissions as a string to dodge JS's 53-bit safe
+// integer limit) — decoding it as a string here fails outright, since
+// Discord actually sends a JSON number.
+type DiscordGuild struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Owner       bool   `json:"owner"`
+	Permissions uint64 `json:"permissions"`
+}
+
+// DiscordTokenResponse holds the OAuth token response from Discord.
+type DiscordTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	Scope        string `json:"scope"`
 }
 
 // DiscordClient performs OAuth2 operations against the Discord API.
@@ -93,7 +117,7 @@ func (c *DiscordClient) authorizeURL(state, prompt string) string {
 		"client_id":     {c.clientID},
 		"redirect_uri":  {c.redirectURI},
 		"response_type": {"code"},
-		"scope":         {"identify email"},
+		"scope":         {discordScope},
 		"state":         {state},
 	}
 	if prompt != "" {
@@ -103,7 +127,7 @@ func (c *DiscordClient) authorizeURL(state, prompt string) string {
 }
 
 // Exchange trades an authorization code for a Discord access token.
-func (c *DiscordClient) Exchange(ctx context.Context, code string) (discordTokenResponse, error) {
+func (c *DiscordClient) Exchange(ctx context.Context, code string) (DiscordTokenResponse, error) {
 	body := url.Values{
 		"client_id":     {c.clientID},
 		"client_secret": {c.clientSecret},
@@ -113,21 +137,50 @@ func (c *DiscordClient) Exchange(ctx context.Context, code string) (discordToken
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, discordTokenURL, strings.NewReader(body.Encode()))
 	if err != nil {
-		return discordTokenResponse{}, fmt.Errorf("discord exchange: build request: %w", err)
+		return DiscordTokenResponse{}, fmt.Errorf("discord exchange: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return discordTokenResponse{}, fmt.Errorf("discord exchange: %w", err)
+		return DiscordTokenResponse{}, fmt.Errorf("discord exchange: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return discordTokenResponse{}, fmt.Errorf("discord exchange: status %d", resp.StatusCode)
+		return DiscordTokenResponse{}, fmt.Errorf("discord exchange: status %d", resp.StatusCode)
 	}
-	var tok discordTokenResponse
+	var tok DiscordTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tok); err != nil {
-		return discordTokenResponse{}, fmt.Errorf("discord exchange: decode: %w", err)
+		return DiscordTokenResponse{}, fmt.Errorf("discord exchange: decode: %w", err)
+	}
+	return tok, nil
+}
+
+// RefreshToken exchanges a Discord refresh token for a new token pair.
+func (c *DiscordClient) RefreshToken(ctx context.Context, refreshToken string) (DiscordTokenResponse, error) {
+	body := url.Values{
+		"client_id":     {c.clientID},
+		"client_secret": {c.clientSecret},
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {refreshToken},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, discordTokenURL, strings.NewReader(body.Encode()))
+	if err != nil {
+		return DiscordTokenResponse{}, fmt.Errorf("discord refresh: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return DiscordTokenResponse{}, fmt.Errorf("discord refresh: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return DiscordTokenResponse{}, fmt.Errorf("discord refresh: status %d", resp.StatusCode)
+	}
+	var tok DiscordTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tok); err != nil {
+		return DiscordTokenResponse{}, fmt.Errorf("discord refresh: decode: %w", err)
 	}
 	return tok, nil
 }
@@ -153,4 +206,29 @@ func (c *DiscordClient) CurrentUser(ctx context.Context, accessToken string) (Di
 		return DiscordUser{}, fmt.Errorf("discord current user: decode: %w", err)
 	}
 	return u, nil
+}
+
+// CurrentUserGuilds fetches the list of guilds the authenticated Discord user
+// belongs to, including their per-guild owner flag and permissions bitfield.
+// Requires the "guilds" scope on the access token.
+func (c *DiscordClient) CurrentUserGuilds(ctx context.Context, accessToken string) ([]DiscordGuild, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discordGuildsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("discord current user guilds: build request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("discord current user guilds: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("discord current user guilds: status %d", resp.StatusCode)
+	}
+	var guilds []DiscordGuild
+	if err := json.NewDecoder(resp.Body).Decode(&guilds); err != nil {
+		return nil, fmt.Errorf("discord current user guilds: decode: %w", err)
+	}
+	return guilds, nil
 }

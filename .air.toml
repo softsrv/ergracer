@@ -6,9 +6,19 @@ tmp_dir = "tmp"
   cmd = "go build -o ./tmp/main ./cmd/app"
   bin = "./tmp/main"
   full_bin = "./tmp/main"
-  include_ext = ["go", "html", "css"]
+  include_ext = ["go", "html", "css", "js"]
   exclude_dir = ["tmp", "vendor", "web/static/css/dist"]
   delay = 1000
+
+# Browse via proxy_port (not PORT/app_port) during `make dev` to get an
+# actual browser auto-refresh: air injects a small reload script into HTML
+# responses and reloads the tab once the rebuilt binary is back up, instead
+# of just restarting the server and leaving you to hit refresh yourself.
+# app_port must match PORT (see .env); update both together if you change it.
+[proxy]
+  enabled = true
+  proxy_port = 8090
+  app_port = 8080
 
 [log]
   time = true

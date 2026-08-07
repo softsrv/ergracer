@@ -94,10 +94,12 @@ func (s *DiscordService) RegisterFromInteraction(ctx context.Context, discordUse
 }
 
 // SetChannel stores (or updates) the designated Concept2 reporting channel for
-// a guild. The record is keyed on guild_id (unique); a repeated call updates the
+// a guild, including its display name — shown on the guild's dashboard page
+// so the channel is human-identifiable there without another Discord API
+// call. The record is keyed on guild_id (unique); a repeated call updates the
 // stored channel in place. guildID, channelID, and setByUserID must all be
 // non-empty or ErrMissingGuildChannel is returned.
-func (s *DiscordService) SetChannel(ctx context.Context, guildID, guildName, channelID, setByUserID string) (db.DiscordGuildSetting, error) {
+func (s *DiscordService) SetChannel(ctx context.Context, guildID, guildName, channelID, channelName, setByUserID string) (db.DiscordGuildSetting, error) {
 	if guildID == "" || channelID == "" || setByUserID == "" {
 		return db.DiscordGuildSetting{}, ErrMissingGuildChannel
 	}
@@ -118,6 +120,7 @@ func (s *DiscordService) SetChannel(ctx context.Context, guildID, guildName, cha
 		ID:              id,
 		GuildID:         guildID,
 		ReportChannelID: channelID,
+		ChannelName:     channelName,
 		SetByUserID:     setByUserID,
 	})
 	if err != nil {
@@ -127,17 +130,71 @@ func (s *DiscordService) SetChannel(ctx context.Context, guildID, guildName, cha
 	return setting, nil
 }
 
-// HasDiscordRegistration reports whether the given site user has registered
-// (via /register) in at least one Discord server.
-func (s *DiscordService) HasDiscordRegistration(ctx context.Context, userID uuid.UUID) (bool, error) {
+// ListRegisteredServers returns every Discord server the given site user has
+// registered in via /register, ordered by when they registered.
+func (s *DiscordService) ListRegisteredServers(ctx context.Context, userID uuid.UUID) ([]db.DiscordRegistration, error) {
 	regs, err := s.q.ListDiscordRegistrationsByUser(ctx, pgtype.UUID{
 		Bytes: userID,
 		Valid: true,
 	})
 	if err != nil {
-		return false, fmt.Errorf("list discord registrations: %w", err)
+		return nil, fmt.Errorf("list discord registrations: %w", err)
 	}
-	return len(regs) > 0, nil
+	return regs, nil
+}
+
+// CountRegisteredUsers returns how many users are currently registered in
+// guildID — shown to server managers on the guild's dashboard page.
+func (s *DiscordService) CountRegisteredUsers(ctx context.Context, guildID string) (int64, error) {
+	count, err := s.q.CountDiscordRegistrationsByGuild(ctx, guildID)
+	if err != nil {
+		return 0, fmt.Errorf("count discord registrations by guild: %w", err)
+	}
+	return count, nil
+}
+
+// UnregisterFromGuild removes a user's registration (undoing
+// RegisterFromInteraction / /register) for one specific guild, used by the
+// guild-detail page's Unregister button. A no-op if no such registration
+// exists — DELETE affecting zero rows is not an error.
+func (s *DiscordService) UnregisterFromGuild(ctx context.Context, discordUserID, guildID string) error {
+	if err := s.q.DeleteDiscordRegistration(ctx, db.DeleteDiscordRegistrationParams{
+		DiscordUserID: discordUserID,
+		GuildID:       guildID,
+	}); err != nil {
+		return fmt.Errorf("delete discord registration: %w", err)
+	}
+	return nil
+}
+
+// ListConfiguredGuildIDs returns the set of guild IDs an admin has configured
+// via /setchannel (i.e. that have a discord_guild_settings row). Used by the
+// dashboard wizard's step-3 picker to filter down to servers that are
+// actually ready to receive results, not just ones the bot happens to be
+// installed in.
+func (s *DiscordService) ListConfiguredGuildIDs(ctx context.Context) (map[string]struct{}, error) {
+	ids, err := s.q.ListConfiguredGuildIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list configured guild ids: %w", err)
+	}
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set, nil
+}
+
+// GetChannelSettings returns guildID's configured reporting channel, and
+// false if no admin has run /setchannel there yet.
+func (s *DiscordService) GetChannelSettings(ctx context.Context, guildID string) (db.DiscordGuildSetting, bool, error) {
+	setting, err := s.q.GetGuildSettings(ctx, guildID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.DiscordGuildSetting{}, false, nil
+		}
+		return db.DiscordGuildSetting{}, false, fmt.Errorf("get guild settings: %w", err)
+	}
+	return setting, true, nil
 }
 
 // RecordGuildSeen upserts a guild's presence/name whenever we observe it —

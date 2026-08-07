@@ -15,3 +15,9 @@ UPDATE discord_registrations SET user_id = $1, updated_at = NOW() WHERE discord_
 
 -- name: ListDiscordRegistrationsByUser :many
 SELECT * FROM discord_registrations WHERE user_id = $1 ORDER BY created_at;
+
+-- name: DeleteDiscordRegistration :exec
+DELETE FROM discord_registrations WHERE discord_user_id = $1 AND guild_id = $2;
+
+-- name: CountDiscordRegistrationsByGuild :one
+SELECT COUNT(*) FROM discord_registrations WHERE guild_id = $1;

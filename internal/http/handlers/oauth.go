@@ -21,6 +21,13 @@ const oauthLoginModeCookie = "oauth_login_mode"
 const oauthLinkStateCookie = "oauth_link_state"
 const oauthConcept2LinkStateCookie = "oauth_concept2_link_state"
 
+// oauthConcept2LinkNextCookie remembers which page a Concept2 link attempt
+// started from ("profile" or "dashboard"), so Concept2LinkCallback can send
+// the user back there — success or failure — rather than a fixed page that
+// may not even show Concept2 status. Only ever holds one of those two fixed
+// keywords, never an arbitrary path, so it can't become an open redirect.
+const oauthConcept2LinkNextCookie = "oauth_concept2_link_next"
+
 // oauthLoginModeSilent/oauthLoginModeConsent are the values stored in
 // oauthLoginModeCookie, distinguishing a prompt=none attempt from its
 // full-consent fallback so DiscordCallback knows whether to retry.
@@ -43,6 +50,13 @@ type guildRecorder interface {
 	RecordGuildSeen(ctx context.Context, guildID, guildName string) error
 }
 
+// setupProgressServicer is the subset of app.UserService needed by
+// DiscordBotInstallCallback to advance a mid-wizard user past step 1 once
+// the Discord bot-install round-trip actually completes.
+type setupProgressServicer interface {
+	SetSetupProgress(ctx context.Context, userID uuid.UUID, progress int32) error
+}
+
 // OAuthHandler handles OAuth2 login and linking flows.
 type OAuthHandler struct {
 	oauth                     oauthServicer
@@ -53,6 +67,7 @@ type OAuthHandler struct {
 	guildRecorder             guildRecorder
 	botToken                  string
 	httpClient                *http.Client
+	users                     setupProgressServicer
 	secure                    bool
 	trustedProxyCount         int
 }
@@ -68,6 +83,7 @@ func NewOAuthHandler(
 	guildRecorder guildRecorder,
 	botToken string,
 	httpClient *http.Client,
+	users setupProgressServicer,
 	secure bool,
 	trustedProxyCount int,
 ) *OAuthHandler {
@@ -83,6 +99,7 @@ func NewOAuthHandler(
 		guildRecorder:             guildRecorder,
 		botToken:                  botToken,
 		httpClient:                httpClient,
+		users:                     users,
 		secure:                    secure,
 		trustedProxyCount:         trustedProxyCount,
 	}
@@ -203,7 +220,7 @@ func (h *OAuthHandler) DiscordCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 // DiscordLinkCallback handles the OAuth2 callback for the Discord account-link
-// flow. The route is behind verifiedMW so middleware.UserFromContext is populated.
+// flow. The route is behind authMW so middleware.UserFromContext is populated.
 func (h *OAuthHandler) DiscordLinkCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
@@ -241,16 +258,24 @@ func (h *OAuthHandler) DiscordLinkCallback(w http.ResponseWriter, r *http.Reques
 // admin installs the bot into a server via the "extended bot
 // authorization" flow (BotInstallURL). It reads the guild_id Discord
 // includes on this redirect and records it — see DiscordService.RecordGuildSeen.
-// Protected by verifiedMW; no state-cookie CSRF check is needed here since
+// Protected by authMW; no state-cookie CSRF check is needed here since
 // nothing sensitive is being granted to the visitor (unlike the login/link
 // flows, this doesn't create a session or link an identity, just records
 // which server got the bot added — worst case of a forged guild_id is a
 // bogus row in discord_guilds, not an account compromise).
+// DiscordBotInstallCallback is reached from a same-tab navigation to
+// Discord's install flow — both the setup wizard's step 1 "Yes" link and the
+// profile page's "Add a server" modal link to it directly rather than
+// opening a new tab, so Discord always lands the browser back here in the
+// same tab the user started from. If the authenticated user is still on
+// wizard step 1 at that point, this advances them to step 2; either way it
+// redirects to /dashboard once done, the same same-tab round-trip the
+// Discord login flow already uses.
 func (h *OAuthHandler) DiscordBotInstallCallback(w http.ResponseWriter, r *http.Request) {
 	guildID := r.URL.Query().Get("guild_id")
 	if guildID == "" {
 		slog.WarnContext(r.Context(), "discord bot install callback: missing guild_id")
-		http.Redirect(w, r, "/profile", http.StatusFound)
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 		return
 	}
 
@@ -271,7 +296,13 @@ func (h *OAuthHandler) DiscordBotInstallCallback(w http.ResponseWriter, r *http.
 		}
 	}
 
-	http.Redirect(w, r, "/profile", http.StatusFound)
+	if user, ok := middleware.UserFromContext(r.Context()); ok && user.SetupProgress == setupStepFirst && h.users != nil {
+		if err := h.users.SetSetupProgress(r.Context(), user.ID, setupStepFirst+1); err != nil {
+			slog.WarnContext(r.Context(), "discord bot install callback: advance setup progress", "user_id", user.ID, "error", err)
+		}
+	}
+
+	http.Redirect(w, r, "/dashboard", http.StatusFound)
 }
 
 func (h *OAuthHandler) completeDiscordLogin(w http.ResponseWriter, r *http.Request, code string) {
@@ -315,47 +346,91 @@ func (h *OAuthHandler) Concept2LinkStart(w http.ResponseWriter, r *http.Request)
 		MaxAge:   600,
 	})
 
+	next := "dashboard"
+	if r.URL.Query().Get("next") == "profile" {
+		next = "profile"
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthConcept2LinkNextCookie,
+		Value:    next,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   600,
+	})
+
 	authorizeURL := h.concept2AuthorizeURL(state)
 	slog.DebugContext(r.Context(), "concept2 link: redirecting to authorize", "url", authorizeURL)
 	http.Redirect(w, r, authorizeURL, http.StatusFound)
 }
 
 // Concept2LinkCallback completes the Concept2 OAuth linking flow. This route
-// is protected by verifiedMW so middleware.UserFromContext is populated.
+// is protected by authMW so middleware.UserFromContext is populated.
 func (h *OAuthHandler) Concept2LinkCallback(w http.ResponseWriter, r *http.Request) {
+	// Read (and clear) where this attempt started before anything else, so
+	// every exit path below — success or failure — lands the user back
+	// there, whether that's the profile page's Connections card or the
+	// onboarding wizard's step 4.
+	redirectTarget := concept2LinkRedirectTarget(w, r, h.secure)
+
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
 
 	cookie, err := r.Cookie(oauthConcept2LinkStateCookie)
 	if err != nil || cookie.Value == "" || cookie.Value != state {
 		slog.WarnContext(r.Context(), "concept2 link callback: state mismatch")
-		http.Redirect(w, r, "/profile", http.StatusFound)
+		http.Redirect(w, r, redirectTarget, http.StatusFound)
 		return
 	}
 	clearConcept2LinkStateCookie(w, h.secure)
 
 	if code == "" {
 		slog.WarnContext(r.Context(), "concept2 link callback: missing code")
-		http.Redirect(w, r, "/profile", http.StatusFound)
+		http.Redirect(w, r, redirectTarget, http.StatusFound)
 		return
 	}
 
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
-		http.Redirect(w, r, "/dashboard", http.StatusFound)
+		http.Redirect(w, r, redirectTarget, http.StatusFound)
 		return
 	}
 
 	if err := h.oauth.LinkConcept2(r.Context(), user.ID, code); err != nil {
 		slog.WarnContext(r.Context(), "concept2 link callback: link", "user_id", user.ID, "error", err)
-		http.Redirect(w, r, "/profile", http.StatusFound)
+		http.Redirect(w, r, redirectTarget, http.StatusFound)
 		return
 	}
 
-	http.Redirect(w, r, "/profile", http.StatusFound)
+	http.Redirect(w, r, redirectTarget, http.StatusFound)
 }
 
-// Concept2Unlink removes the Concept2 identity link from the authenticated user's account.
+// concept2LinkRedirectTarget reads and clears the oauthConcept2LinkNextCookie
+// set by Concept2LinkStart, returning "/dashboard" or "/profile". Defaults to
+// "/dashboard" if the cookie is missing (e.g. a stale or direct hit on this
+// callback).
+func concept2LinkRedirectTarget(w http.ResponseWriter, r *http.Request, secure bool) string {
+	target := "/dashboard"
+	if cookie, err := r.Cookie(oauthConcept2LinkNextCookie); err == nil && cookie.Value == "profile" {
+		target = "/profile"
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthConcept2LinkNextCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+	return target
+}
+
+// Concept2Unlink removes the Concept2 identity link from the authenticated
+// user's account. Only ever reached from the profile page's Connections
+// card, so it redirects back there rather than /dashboard (which no longer
+// shows any Concept2 status outside the onboarding wizard).
 func (h *OAuthHandler) Concept2Unlink(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
@@ -370,16 +445,16 @@ func (h *OAuthHandler) Concept2Unlink(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`<div class="alert alert-error text-sm">` + html.EscapeString(err.Error()) + `</div>`)) //nolint:errcheck
 			return
 		}
-		http.Redirect(w, r, "/dashboard", http.StatusFound)
+		http.Redirect(w, r, "/profile", http.StatusFound)
 		return
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("HX-Redirect", "/dashboard")
+		w.Header().Set("HX-Redirect", "/profile")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	http.Redirect(w, r, "/dashboard", http.StatusFound)
+	http.Redirect(w, r, "/profile", http.StatusFound)
 }
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────

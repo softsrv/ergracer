@@ -11,6 +11,56 @@
     </div>
   </div>
 
+  {{if .Concept2Enabled}}
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h3 class="card-title text-lg">Connections</h3>
+
+      <div class="flex items-center justify-between py-2">
+        <div class="flex items-center gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+          <div>
+            <p class="font-medium">Concept2 Logbook</p>
+            {{if .Concept2Linked}}
+            <p class="text-sm text-base-content/60">Connected as {{.Concept2Username}}</p>
+            {{else}}
+            <p class="text-sm text-base-content/60">Not connected</p>
+            {{end}}
+          </div>
+        </div>
+
+        <div id="concept2-action">
+          {{if .Concept2Linked}}
+          <button hx-post="/profile/connections/concept2/unlink"
+                  hx-target="#concept2-action"
+                  hx-swap="outerHTML"
+                  hx-confirm="Disconnect your Concept2 Logbook account?"
+                  hx-disable="this"
+                  class="btn btn-sm btn-ghost text-error">Disconnect</button>
+          {{else}}
+          <a href="/auth/concept2/link?next=profile" class="btn btn-sm btn-outline">Connect</a>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  {{if .DiscordEnabled}}
+  <div class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <div class="flex items-center justify-between">
+        <h3 class="card-title text-lg">Discord servers</h3>
+        <button type="button" class="js-add-server-modal btn btn-sm btn-outline">Add a server</button>
+      </div>
+      <p class="text-sm text-base-content/70">Add RowBot to a new server, or register yourself in a server that already has a RowBot.</p>
+    </div>
+  </div>
+  {{end}}
+
   <div class="card bg-base-100 shadow-xl">
     <div class="card-body">
       <h3 class="card-title text-lg">Active Sessions</h3>
@@ -30,6 +80,7 @@
             hx-target="#delete-result"
             hx-swap="innerHTML"
             hx-confirm="Are you sure you want to permanently delete your account? This cannot be undone."
+            hx-disable="find button"
             class="mt-4">
         <button type="submit" class="btn btn-error btn-outline w-full">Delete Account</button>
       </form>
@@ -37,4 +88,51 @@
   </div>
 
 </div>
+
+{{if .DiscordEnabled}}
+<!-- "Add" modal: same DaisyUI dialog + vanilla-JS wiring pattern as
+     landing.html's #get-started-modal. "Add RowBot to a server" is a direct
+     link to Discord's install flow — no intermediate reveal step, since
+     there's nothing to configure first. "Register for a server" is the only
+     remaining choice that reveals a sub-section in place, since picking a
+     server from the dropdown happens right here in the modal. -->
+<dialog id="add-server-modal" class="modal">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" aria-label="Close">✕</button>
+    </form>
+    <h3 class="text-lg font-bold">Add a server</h3>
+
+    <div class="mt-4 flex gap-2">
+      {{if .DiscordBotInstallURL}}
+      <a href="{{.DiscordBotInstallURL}}" rel="noopener" class="btn btn-sm btn-outline flex-1">Add RowBot to a server</a>
+      {{end}}
+      <button type="button" class="js-add-choice btn btn-sm btn-outline flex-1" data-target="add-server-register">Register for a server</button>
+    </div>
+
+    <div id="add-server-register" class="js-add-section mt-4 hidden">
+      {{if .RegisterableGuilds}}
+      <p class="mb-2 text-sm text-base-content/70">Choose which server your results should be sent to.</p>
+      <form hx-post="/profile/discord-registration" hx-disable="find button" class="flex flex-wrap items-center gap-2">
+        <select name="guild_id" class="select select-bordered select-sm flex-1">
+          {{range .RegisterableGuilds}}
+          <option value="{{.GuildID}}">{{.GuildName}}</option>
+          {{end}}
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary">Register</button>
+      </form>
+      {{else}}
+      <p class="text-sm text-base-content/70">
+        No servers are ready yet — make sure RowBot has been added and
+        <code class="rounded bg-base-300 px-1.5 py-0.5 text-xs">/setchannel</code>
+        has been run there, then refresh this page.
+      </p>
+      {{end}}
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
+{{end}}
 {{end}}

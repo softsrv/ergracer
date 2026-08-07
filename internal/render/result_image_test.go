@@ -165,18 +165,25 @@ func TestRenderResultPNG(t *testing.T) {
 
 			// Every result renders the header band and hero stats, plus —
 			// only when there are pieces — the splits/intervals table
-			// (column-header row included). A result with no pieces (e.g.
-			// JustRow) has no table at all, so its height excludes the
-			// table dimensions entirely.
+			// (column-header row included, plus a rest-time annotation row
+			// after any piece that reports one). A result with no pieces
+			// (e.g. JustRow) has no table at all, so its height excludes
+			// the table dimensions entirely.
 			rowCount := len(pieces)
 			truncated := false
 			if rowCount > maxTableRows {
 				rowCount = maxTableRows
 				truncated = true
 			}
+			restRows := 0
+			for _, p := range pieces[:rowCount] {
+				if p.RestTime > 0 {
+					restRows++
+				}
+			}
 			expected := headerHeight + heroStatsHeight
 			if len(pieces) > 0 {
-				expected += tableTopPad + tableHeaderHeight + rowCount*tableRowHeight
+				expected += tableTopPad + tableHeaderHeight + rowCount*tableRowHeight + restRows*restRowHeight
 				if truncated {
 					expected += tableRowHeight
 				}
@@ -234,13 +241,13 @@ func TestSportLabelAndColor(t *testing.T) {
 		{"slides", "Slides", 0x4A90D9},
 		{"water", "Water", 0x4A90D9},
 		// Ski family.
-		{"skierg", "SkiErg", 0x5B9BD5},
+		{"skierg", "Skiing", 0x5B9BD5},
 		{"snow", "Snow", 0x5B9BD5},
 		{"rollerski", "Roller Ski", 0x5B9BD5},
 		// Bike — note the real API key is "bike", not "bikeerg".
-		{"bike", "BikeErg", 0xED7D31},
+		{"bike", "Cycling", 0xED7D31},
 		// Paddle and MultiErg get their own accent colors.
-		{"paddle", "Paddle", 0x2FA89A},
+		{"paddle", "Paddling", 0x2FA89A},
 		{"multierg", "MultiErg", 0x8B5FBF},
 		// Fallbacks.
 		{"", "Result", 0x4A90D9},

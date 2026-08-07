@@ -1,115 +1,108 @@
 {{define "title"}}Dashboard{{end}}
 
+{{define "main-class"}}container mx-auto px-4 py-8 max-w-5xl{{end}}
+
 {{define "content"}}
-<div class="space-y-6">
-
-  {{if .AllSet}}
-  <div class="card bg-base-100 shadow-xl">
-    <div class="card-body items-center text-center">
-      <div class="flex h-11 w-11 items-center justify-center rounded-full bg-success text-success-content">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-      <h2 class="card-title">You're all set!</h2>
-      <p class="text-base-content/70">RowBot will post your results to Discord automatically.</p>
-    </div>
-  </div>
-  {{else}}
-  <div class="card bg-base-100 shadow-xl">
+  {{if .ShowWizard}}
+  <div class="card flex-1 bg-base-100 shadow-xl">
     <div class="card-body">
-      <p class="text-base-content/70">Follow these steps to start posting your Concept2 results to Discord.</p>
+      <div class="text-base-content/70">Follow these steps to start seeing your results in Discord.</div>
 
-      <div class="mt-4 space-y-6">
+      <div class="mt-4">
 
-        <!-- Step 1: Sign in with Discord -->
+        {{if eq .WizardStep 1}}
+        <!-- Step 1: branches the wizard. "Yes" navigates this same tab to
+             Discord's install flow; Discord lands back on
+             DiscordBotInstallCallback, which — since setup_progress is still
+             1 at that point — advances to step 2 and redirects to
+             /dashboard once the bot is actually installed (same-tab
+             round-trip, matching the Discord login flow). "No" skips
+             straight to step 3 via SetupSkipToRegister, since running
+             /setchannel isn't this user's job to do. -->
         <div class="flex gap-4">
-          {{if .LoggedIn}}
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success text-success-content">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          {{else}}
           <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold">1</div>
-          {{end}}
           <div class="flex-1">
-            <h3 class="font-semibold">Sign in with Discord</h3>
-            {{if .LoggedIn}}
-            <p class="text-sm text-base-content/70">
-              {{if .DiscordUsername}}Signed in as {{.DiscordUsername}}{{else}}Signed in{{end}}
-            </p>
-            {{else}}
-            <p class="mb-2 text-sm text-base-content/70">Discord is the only sign-in method — one click and you're in.</p>
-            <a href="/auth/discord/login" class="btn btn-outline gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 127.14 96.36" fill="currentColor">
-                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
-              </svg>
-              Continue with Discord
-            </a>
-            {{end}}
+            <h3 class="font-semibold">Are you adding RowBot to a Discord server that you manage?</h3>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              {{if .DiscordBotInstallURL}}
+              <a href="{{.DiscordBotInstallURL}}" rel="noopener" class="btn btn-sm btn-primary">Yes</a>
+              {{end}}
+              <form hx-post="/dashboard/setup/skip" hx-disable="find button">
+                <button type="submit" class="btn btn-sm btn-outline">No</button>
+              </form>
+            </div>
           </div>
         </div>
+        {{end}}
 
-        <!-- Step 2: Register your server (admins only, optional) -->
+        {{if eq .WizardStep 2}}
+        <!-- Step 2: Run /setchannel -->
         <div class="flex gap-4">
           <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold">2</div>
           <div class="flex-1">
-            <h3 class="font-semibold">Register your server (admins only)</h3>
-            <p class="mb-2 text-sm text-base-content/50">Optional — skip if you're not a server admin, or your server is already set up.</p>
-            <p class="mb-2 text-sm text-base-content/70">
-              Add RowBot to your Discord server, then run
+            <h3 class="font-semibold">Choose your channel</h3>
+            <div class="mb-3 text-sm text-base-content/70">
+              After adding RowBot to your server, please run the
               <code class="rounded bg-base-300 px-1.5 py-0.5 text-xs">/setchannel</code>
-              in the channel where results should post.
-            </p>
-            {{if .DiscordBotInstallURL}}
-            <a href="{{.DiscordBotInstallURL}}" target="_blank" rel="noopener" class="btn btn-sm btn-outline">Add to your server</a>
-            {{end}}
+              command in the channel that you will be using to display results. Then click "Done".
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <form hx-post="/dashboard/setup/next" hx-disable="find button">
+                <button type="submit" class="btn btn-sm btn-primary">Done</button>
+              </form>
+            </div>
           </div>
         </div>
+        {{end}}
 
-        <!-- Step 3: Register yourself in your server -->
+        {{if eq .WizardStep 3}}
+        <!-- Step 3: Register to receive results in a server. Unlike the
+             profile page's own picker, this list isn't restricted to servers
+             that have already run /setchannel — see WizardRegisterableGuilds
+             in profile.go for why that's safe. -->
         <div class="flex gap-4">
-          {{if .HasServerRegistration}}
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success text-success-content">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          {{else}}
           <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold">3</div>
-          {{end}}
           <div class="flex-1">
-            <h3 class="font-semibold">Register yourself in your server</h3>
-            {{if .HasServerRegistration}}
-            <p class="text-sm text-base-content/70">You're registered.</p>
+            <h3 class="font-semibold">Send your results to one of the following registered servers</h3>
+            {{if .WizardRegisterableGuilds}}
+            <form hx-post="/profile/discord-registration" hx-disable="find button" class="mt-2 flex flex-wrap items-center gap-2">
+              <select name="guild_id" class="select select-bordered select-sm">
+                {{range .WizardRegisterableGuilds}}
+                <option value="{{.GuildID}}">{{.GuildName}}</option>
+                {{end}}
+              </select>
+              <button type="submit" class="btn btn-sm btn-primary">Register</button>
+            </form>
             {{else}}
-            <p class="text-sm text-base-content/70">
-              In your Discord server, type <code class="rounded bg-base-300 px-1.5 py-0.5 text-xs">/register</code>.
-            </p>
+            <div class="mt-2 text-sm text-base-content/70">
+              You don't seem to have any servers available. Make sure to ask someone with "manage" permission to add RowBot to their server, then you will be able to register.
+            </div>
+            <form hx-post="/dashboard/setup/previous" hx-disable="find button" class="mt-2">
+              <button type="submit" class="btn btn-sm btn-ghost">Previous</button>
+            </form>
             {{end}}
           </div>
         </div>
+        {{end}}
 
+        {{if eq .WizardStep 4}}
         <!-- Step 4: Connect Concept2 -->
-        {{if .Concept2Enabled}}
         <div class="flex gap-4">
-          {{if .Concept2Linked}}
-          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-success text-success-content">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          {{else}}
           <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-content font-bold">4</div>
-          {{end}}
           <div class="flex-1">
-            <h3 class="font-semibold">Connect your Concept2 account</h3>
+            <h3 class="font-semibold">Connect your Concept2 Logbook account</h3>
             {{if .Concept2Linked}}
-            <p class="text-sm text-base-content/70">Connected as {{.Concept2Username}}</p>
+            <div class="mb-3 text-sm text-base-content/70">Connected as {{.Concept2Username}}</div>
+            <div class="flex flex-wrap items-center gap-2">
+              <form hx-post="/dashboard/setup/next" hx-disable="find button">
+                <button type="submit" class="btn btn-sm btn-primary">Done</button>
+              </form>
+            </div>
             {{else}}
-            <p class="mb-2 text-sm text-base-content/70">Link your Concept2 Logbook account so RowBot can read your results.</p>
-            <a href="/auth/concept2/link" class="btn btn-sm btn-outline">Connect</a>
+            <div class="mb-3 text-sm text-base-content/70">Link your Concept2 Logbook account so RowBot can read your results.</div>
+            <div class="flex flex-wrap items-center gap-2">
+              <a href="/auth/concept2/link" class="btn btn-sm btn-outline">Connect</a>
+            </div>
             {{end}}
           </div>
         </div>
@@ -118,74 +111,16 @@
       </div>
     </div>
   </div>
-  {{end}}
-
-  {{if .LoggedIn}}
-  {{if or .DiscordEnabled .Concept2Enabled}}
-  <div class="card bg-base-100 shadow-xl">
+  {{else}}
+  <!-- Setup is done but the user has no servers to show (e.g. they've since
+       left every server they were in or managed) — DashboardPage otherwise
+       redirects straight to /dashboard/servers/{guildID} once there's at
+       least one, so this is only reached in that edge case. -->
+  <div class="card flex-1 bg-base-100 shadow-xl">
     <div class="card-body">
-      <h3 class="card-title text-lg">Integrations</h3>
-
-      {{if .DiscordEnabled}}
-      <div class="flex items-center justify-between py-2">
-        <div class="flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 127.14 96.36" fill="currentColor" class="text-indigo-500">
-            <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
-          </svg>
-          <div>
-            <p class="font-medium">Discord</p>
-            <p class="text-sm text-base-content/60">
-              {{if .DiscordUsername}}Connected as {{.DiscordUsername}}{{else}}Connected{{end}}
-            </p>
-          </div>
-        </div>
-
-        <div id="discord-action">
-          <div class="flex flex-col items-end gap-1">
-            {{if .DiscordBotInstallURL}}
-            <a href="{{.DiscordBotInstallURL}}" target="_blank" rel="noopener"
-               class="btn btn-sm btn-outline">Add to your server</a>
-            {{end}}
-          </div>
-        </div>
-      </div>
-      {{end}}
-
-      {{if .Concept2Enabled}}
-      <div class="flex items-center justify-between py-2">
-        <div class="flex items-center gap-3">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 6v6l4 2"/>
-          </svg>
-          <div>
-            <p class="font-medium">Concept2 Logbook</p>
-            {{if .Concept2Linked}}
-            <p class="text-sm text-base-content/60">Connected as {{.Concept2Username}}</p>
-            {{else}}
-            <p class="text-sm text-base-content/60">Not connected</p>
-            {{end}}
-          </div>
-        </div>
-
-        <div id="concept2-action">
-          {{if .Concept2Linked}}
-          <button hx-post="/profile/integrations/concept2/unlink"
-                  hx-target="#concept2-action"
-                  hx-swap="outerHTML"
-                  hx-confirm="Disconnect your Concept2 Logbook account?"
-                  class="btn btn-sm btn-ghost text-error">Disconnect</button>
-          {{else}}
-          <a href="/auth/concept2/link" class="btn btn-sm btn-outline">Connect</a>
-          {{end}}
-        </div>
-      </div>
-      {{end}}
-
+      <p class="text-base-content/70">You don't have any servers yet.</p>
+      <a href="/profile" class="btn btn-sm btn-outline w-fit">Add a server from your profile</a>
     </div>
   </div>
   {{end}}
-  {{end}}
-
-</div>
 {{end}}

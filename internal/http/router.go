@@ -58,20 +58,20 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	refreshRL := middleware.NewRateLimiter(ctx, 10, time.Minute, middleware.CookieRefreshTokenKeyFunc)
 
 	authMW := middleware.Authenticate(cfg.Queries, cfg.JWTSecret)
-	verifiedMW := func(h http.Handler) http.Handler { return authMW(middleware.RequireEmailVerified(h)) }
 
 	if cfg.OAuthSvc != nil {
-		oauthH := handlers.NewOAuthHandler(cfg.OAuthSvc, cfg.DiscordAuthorizeURL, cfg.DiscordSilentAuthorizeURL, cfg.DiscordLinkAuthorizeURL, cfg.Concept2AuthorizeURL, cfg.DiscordSvc, cfg.DiscordBotToken, nil, cfg.Secure, cfg.TrustedProxyCount)
+		oauthH := handlers.NewOAuthHandler(cfg.OAuthSvc, cfg.DiscordAuthorizeURL, cfg.DiscordSilentAuthorizeURL, cfg.DiscordLinkAuthorizeURL, cfg.Concept2AuthorizeURL, cfg.DiscordSvc, cfg.DiscordBotToken, nil, cfg.UserSvc, cfg.Secure, cfg.TrustedProxyCount)
 		discordRL := middleware.NewRateLimiter(ctx, 10, 15*time.Minute, ipKey)
 		mux.Handle("GET /auth/discord/login", discordRL.Middleware(http.HandlerFunc(oauthH.DiscordLogin)))
 		mux.Handle("GET /auth/discord/callback", discordRL.Middleware(http.HandlerFunc(oauthH.DiscordCallback)))
-		mux.Handle("GET /auth/discord/link", verifiedMW(http.HandlerFunc(oauthH.DiscordLinkStart)))
-		mux.Handle("GET /auth/discord/link/callback", verifiedMW(http.HandlerFunc(oauthH.DiscordLinkCallback)))
-		mux.Handle("GET /auth/discord/bot-install/callback", verifiedMW(http.HandlerFunc(oauthH.DiscordBotInstallCallback)))
+		mux.Handle("GET /auth/discord/link", authMW(http.HandlerFunc(oauthH.DiscordLinkStart)))
+		mux.Handle("GET /auth/discord/link/callback", authMW(http.HandlerFunc(oauthH.DiscordLinkCallback)))
+		mux.Handle("GET /auth/discord/bot-install/callback", authMW(http.HandlerFunc(oauthH.DiscordBotInstallCallback)))
 
-		mux.Handle("GET /auth/concept2/link", verifiedMW(http.HandlerFunc(oauthH.Concept2LinkStart)))
-		mux.Handle("GET /auth/concept2/link/callback", verifiedMW(http.HandlerFunc(oauthH.Concept2LinkCallback)))
-		mux.Handle("POST /profile/integrations/concept2/unlink", verifiedMW(http.HandlerFunc(oauthH.Concept2Unlink)))
+		mux.Handle("GET /auth/concept2/link", authMW(http.HandlerFunc(oauthH.Concept2LinkStart)))
+		mux.Handle("GET /auth/concept2/link/callback", authMW(http.HandlerFunc(oauthH.Concept2LinkCallback)))
+		mux.Handle("POST /profile/connections/concept2/unlink", authMW(http.HandlerFunc(oauthH.Concept2Unlink)))
+		mux.Handle("POST /profile/discord-registration", authMW(http.HandlerFunc(profileH.RegisterDiscordServer)))
 	}
 
 	// ── Static assets ─────────────────────────────────────────────────────────
@@ -105,6 +105,14 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 				return
 			}
 		}
+		// No valid access token — before giving up and showing the marketing
+		// page, mirror middleware.Authenticate's recovery path: a still-valid
+		// refresh_token means this is an expired session, not a genuinely
+		// anonymous visitor, so attempt a silent refresh first.
+		if _, err := r.Cookie("refresh_token"); err == nil {
+			http.Redirect(w, r, "/auth/silent-refresh?next=/dashboard", http.StatusFound)
+			return
+		}
 		cfg.Renderer.Page(w, http.StatusOK, "landing.html", nil)
 	})
 
@@ -114,19 +122,21 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	// ── Protected routes ──────────────────────────────────────────────────────
 	mux.Handle("POST /auth/logout", authMW(http.HandlerFunc(authH.Logout)))
 
-	mux.Handle("GET /auth/sessions", verifiedMW(http.HandlerFunc(sessH.ListSessions)))
-	mux.Handle("DELETE /auth/sessions/{id}", verifiedMW(http.HandlerFunc(sessH.RevokeSession)))
+	mux.Handle("GET /auth/sessions", authMW(http.HandlerFunc(sessH.ListSessions)))
+	mux.Handle("DELETE /auth/sessions/{id}", authMW(http.HandlerFunc(sessH.RevokeSession)))
 
-	mux.Handle("GET /profile", verifiedMW(http.HandlerFunc(profileH.ProfilePage)))
-	mux.Handle("POST /profile/delete", verifiedMW(http.HandlerFunc(profileH.DeleteAccount)))
+	mux.Handle("GET /profile", authMW(http.HandlerFunc(profileH.ProfilePage)))
+	mux.Handle("POST /profile/delete", authMW(http.HandlerFunc(profileH.DeleteAccount)))
 
-	// Dashboard is the public sign-in/setup entry point for the whole site —
-	// it must render correctly for both anonymous and authenticated visitors,
-	// so it uses OptionalAuthenticate (populates the user context when a valid
-	// session exists, but never rejects/redirects when one doesn't) rather
-	// than the hard-reject authMW/verifiedMW used by protected routes.
-	optionalAuthMW := middleware.OptionalAuthenticate(cfg.Queries, cfg.JWTSecret)
-	mux.Handle("GET /dashboard", optionalAuthMW(http.HandlerFunc(profileH.DashboardPage)))
+	// Dashboard now requires a session — anonymous visitors are sent to the
+	// landing page ("/") instead, which is the real sign-in entry point via
+	// its Discord OAuth "Get Started" link. Same authMW as /profile.
+	mux.Handle("GET /dashboard", authMW(http.HandlerFunc(profileH.DashboardPage)))
+	mux.Handle("POST /dashboard/setup/next", authMW(http.HandlerFunc(profileH.SetupNext)))
+	mux.Handle("POST /dashboard/setup/previous", authMW(http.HandlerFunc(profileH.SetupPrevious)))
+	mux.Handle("POST /dashboard/setup/skip", authMW(http.HandlerFunc(profileH.SetupSkipToRegister)))
+	mux.Handle("GET /dashboard/servers/{guildID}", authMW(http.HandlerFunc(profileH.GuildPage)))
+	mux.Handle("POST /dashboard/servers/{guildID}/unregister", authMW(http.HandlerFunc(profileH.UnregisterDiscordServer)))
 
 	// ── Global middleware chain ───────────────────────────────────────────────
 	// BodyLimit is innermost so it wraps r.Body before any handler reads it.

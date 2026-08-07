@@ -5,7 +5,7 @@
      fantasy, wireframe, black, luxury, cmyk, autumn, business, acid,
      lemonade, night, coffee, winter, dim, nord, sunset, and more.
      Full list: https://daisyui.com/docs/themes/ -->
-<html lang="en" data-theme="dracula">
+<html lang="en" data-theme="business">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,7 +15,7 @@
   <script src="/static/js/htmx.min.js"></script>
   <script src="/static/js/app.js" defer></script>
 </head>
-<body class="min-h-screen bg-base-200">
+<body class="flex min-h-screen flex-col bg-base-200">
   <nav class="navbar bg-base-100 shadow-sm px-4">
     <div class="flex-1">
       <a href="/" class="flex items-center gap-2 text-xl font-bold">
@@ -49,7 +49,7 @@
     </div>
   </nav>
 
-  <main class="{{block "main-class" .}}container mx-auto px-4 py-8 max-w-md{{end}}">
+  <main class="flex flex-1 flex-col {{block "main-class" .}}container mx-auto px-4 py-8 max-w-md{{end}}">
     {{block "content" .}}{{end}}
   </main>
 </body>

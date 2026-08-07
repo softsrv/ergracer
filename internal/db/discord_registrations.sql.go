@@ -12,6 +12,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countDiscordRegistrationsByGuild = `-- name: CountDiscordRegistrationsByGuild :one
+SELECT COUNT(*) FROM discord_registrations WHERE guild_id = $1
+`
+
+func (q *Queries) CountDiscordRegistrationsByGuild(ctx context.Context, guildID string) (int64, error) {
+	row := q.db.QueryRow(ctx, countDiscordRegistrationsByGuild, guildID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteDiscordRegistration = `-- name: DeleteDiscordRegistration :exec
+DELETE FROM discord_registrations WHERE discord_user_id = $1 AND guild_id = $2
+`
+
+type DeleteDiscordRegistrationParams struct {
+	DiscordUserID string `json:"discord_user_id"`
+	GuildID       string `json:"guild_id"`
+}
+
+func (q *Queries) DeleteDiscordRegistration(ctx context.Context, arg DeleteDiscordRegistrationParams) error {
+	_, err := q.db.Exec(ctx, deleteDiscordRegistration, arg.DiscordUserID, arg.GuildID)
+	return err
+}
+
 const getDiscordRegistration = `-- name: GetDiscordRegistration :one
 SELECT id, discord_user_id, discord_username, guild_id, guild_name, user_id, created_at, updated_at FROM discord_registrations WHERE discord_user_id = $1 AND guild_id = $2 LIMIT 1
 `

@@ -13,7 +13,7 @@ export
         daisyui-install tailwind tailwind-watch \
         smtp4dev smtp4dev-stop \
         migrate-up migrate-down migrate-create migrate-status \
-        sqlc-generate \
+        sqlc-generate db-reset \
         docker-build docker-run prod clean
 
 ## ── Development ─────────────────────────────────────────────────────────────
@@ -110,6 +110,11 @@ migrate-status:
 
 sqlc-generate:
 	sqlc generate -f db/sqlc.yaml
+
+# Truncates every application table in DATABASE_URL, for wiping local dev
+# data clean. Refuses to run unless APP_ENV=development.
+db-reset:
+	go run ./cmd/dbreset
 
 ## ── Docker ───────────────────────────────────────────────────────────────────
 

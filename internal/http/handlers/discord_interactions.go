@@ -17,8 +17,7 @@ import (
 // discordServicer is the subset of app.DiscordService used by DiscordHandler.
 // Keeping it as a local interface makes the handler independently testable.
 type discordServicer interface {
-	RegisterFromInteraction(ctx context.Context, discordUserID, discordUsername, guildID, guildName string) (db.DiscordRegistration, error)
-	SetChannel(ctx context.Context, guildID, guildName, channelID, setByUserID string) (db.DiscordGuildSetting, error)
+	SetChannel(ctx context.Context, guildID, guildName, channelID, channelName, setByUserID string) (db.DiscordGuildSetting, error)
 }
 
 // DiscordHandler handles Discord HTTP interaction requests.
@@ -31,7 +30,7 @@ type DiscordHandler struct {
 
 // NewDiscordHandler constructs a DiscordHandler with the given Ed25519 public key,
 // bot token, HTTP client, and Discord service. When httpClient is nil,
-// http.DefaultClient is used. When svc is nil, the register command logs a
+// http.DefaultClient is used. When svc is nil, the setchannel command logs a
 // warning and returns an ephemeral error response rather than panicking.
 func NewDiscordHandler(pubKey ed25519.PublicKey, botToken string, httpClient *http.Client, svc discordServicer) *DiscordHandler {
 	if httpClient == nil {
@@ -85,57 +84,12 @@ func (h *DiscordHandler) Interactions(w http.ResponseWriter, r *http.Request) {
 
 func (h *DiscordHandler) handleCommand(r *http.Request, interaction discord.Interaction) discord.InteractionResponse {
 	switch interaction.Data.Name {
-	case "register":
-		return h.handleRegister(r, interaction)
 	case "setchannel":
 		return h.handleSetChannel(r, interaction)
 	default:
 		slog.WarnContext(r.Context(), "discord interactions: unknown command", "command", interaction.Data.Name)
 		return discord.EphemeralResponse("unknown command")
 	}
-}
-
-func (h *DiscordHandler) handleRegister(r *http.Request, interaction discord.Interaction) discord.InteractionResponse {
-	// Resolve Discord user identity — guild interactions populate Member,
-	// DM interactions populate User.
-	var discordUserID, discordUsername string
-	if interaction.Member != nil {
-		discordUserID = interaction.Member.User.ID
-		discordUsername = interaction.Member.User.Username
-	} else if interaction.User != nil {
-		discordUserID = interaction.User.ID
-		discordUsername = interaction.User.Username
-	}
-
-	// Resolve guild name, falling back gracefully if the API call fails or the
-	// command was sent in a DM (no guild_id).
-	guildID := interaction.GuildID
-	guildName := "unknown server"
-	if guildID != "" {
-		guildCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if name, err := discord.GetGuildName(guildCtx, h.httpClient, h.botToken, guildID); err == nil {
-			guildName = name
-		} else {
-			slog.WarnContext(r.Context(), "discord interactions: get guild name", "guild_id", guildID, "error", err)
-		}
-	}
-
-	if h.svc == nil {
-		slog.WarnContext(r.Context(), "discord interactions: register called but DiscordService is not configured")
-		return discord.EphemeralResponse("Registration is not available right now. Please try again later.")
-	}
-
-	if _, err := h.svc.RegisterFromInteraction(r.Context(), discordUserID, discordUsername, guildID, guildName); err != nil {
-		slog.ErrorContext(r.Context(), "discord interactions: register from interaction",
-			"discord_user_id", discordUserID,
-			"guild_id", guildID,
-			"error", err,
-		)
-		return discord.EphemeralResponse("Something went wrong — please try again.")
-	}
-
-	return discord.EphemeralResponse("You're registered! Welcome to the server.")
 }
 
 // handleSetChannel processes the /setchannel command. It stores the current
@@ -185,7 +139,15 @@ func (h *DiscordHandler) handleSetChannel(r *http.Request, interaction discord.I
 		slog.WarnContext(r.Context(), "discord interactions: get guild name", "guild_id", interaction.GuildID, "error", err)
 	}
 
-	if _, err := h.svc.SetChannel(r.Context(), interaction.GuildID, guildName, interaction.ChannelID, interaction.Member.User.ID); err != nil {
+	// Discord includes a partial channel object (with its name) directly on
+	// guild interactions, so no extra API call is needed here the way
+	// guildName above requires one.
+	channelName := ""
+	if interaction.Channel != nil {
+		channelName = interaction.Channel.Name
+	}
+
+	if _, err := h.svc.SetChannel(r.Context(), interaction.GuildID, guildName, interaction.ChannelID, channelName, interaction.Member.User.ID); err != nil {
 		slog.ErrorContext(r.Context(), "discord interactions: set channel",
 			"guild_id", interaction.GuildID,
 			"channel_id", interaction.ChannelID,

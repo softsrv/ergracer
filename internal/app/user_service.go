@@ -50,6 +50,16 @@ func (s *UserService) DeleteAccount(ctx context.Context, userID uuid.UUID) error
 	return nil
 }
 
+// SetSetupProgress persists which step of the dashboard onboarding wizard
+// the user is on (1-4), or 5 once they've finished and the wizard should
+// never be shown again.
+func (s *UserService) SetSetupProgress(ctx context.Context, userID uuid.UUID, progress int32) error {
+	if err := s.q.SetSetupProgress(ctx, db.SetSetupProgressParams{ID: userID, SetupProgress: progress}); err != nil {
+		return fmt.Errorf("set setup progress: %w", err)
+	}
+	return nil
+}
+
 // RevokeSession revokes a specific refresh token, enforcing ownership.
 // It returns the revoked token so the caller can determine whether it was the
 // caller's own active session.

@@ -13,5 +13,5 @@
    List every theme you want compiled into the output CSS.
    Flags: --default (applied to :root), --prefersdark (applied under prefers-color-scheme: dark). */
 @plugin "./daisyui.mjs" {
-  themes: light --default, dark --prefersdark, dracula;
+  themes: light --default, dark --prefersdark, dracula, business;
 }

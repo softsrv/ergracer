@@ -32,9 +32,17 @@ type Interaction struct {
 	Type      InteractionType `json:"type"`
 	GuildID   string          `json:"guild_id,omitempty"`
 	ChannelID string          `json:"channel_id,omitempty"`
+	Channel   *ChannelData    `json:"channel,omitempty"` // partial channel object; present for guild interactions
 	Data      InteractionData `json:"data"`
 	Member    *MemberData     `json:"member,omitempty"` // present for guild interactions
 	User      *UserData       `json:"user,omitempty"`   // present for DM interactions
+}
+
+// ChannelData is the partial channel object Discord includes on interactions
+// invoked inside a guild channel.
+type ChannelData struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // InteractionData carries command-specific fields.

@@ -20,7 +20,7 @@ import (
 // canvasWidth is the fixed pixel width of every rendered result image.
 // Height is computed dynamically from content (header, hero stats, and —
 // if present — the splits/intervals table row count, plus the footer).
-const canvasWidth = 750
+const canvasWidth = 650
 
 const (
 	marginX = 32
@@ -39,6 +39,12 @@ const (
 	tableRowHeight    = 30
 	tableBottomPad    = 24
 
+	// restRowHeight is the height of the annotation row drawn after an
+	// interval piece that reports a rest time — shorter than a full piece
+	// row since it carries a single muted value rather than the whole
+	// column set.
+	restRowHeight = 24
+
 	// footerHeight is the height of the closing brand/date strip at the
 	// bottom of the card.
 	footerHeight = 40
@@ -55,10 +61,10 @@ const (
 )
 
 // The "Regatta Ledger" palette: a deep navy ground with parchment ink for
-// nearly everything, so brass and the flag red read as genuine highlights
-// rather than competing with them. The rule colors below aren't arbitrary
-// greys — they're parchment blended down to near-transparency over the
-// navy paper color (the design's dark-mode ".rule"/".rule-soft"/
+// nearly everything, so brass reads as a genuine highlight rather than
+// competing with a second accent color. The rule colors below aren't
+// arbitrary greys — they're parchment blended down to near-transparency
+// over the navy paper color (the design's dark-mode ".rule"/".rule-soft"/
 // ".ink-faint" washes), which is what keeps hairlines and dividers reading
 // as muted rather than adding a second, competing highlight color.
 var (
@@ -69,7 +75,6 @@ var (
 	colorRule     = rgb{64, 73, 87}
 	colorRuleSoft = rgb{42, 54, 71}
 	colorBrass    = rgb{204, 159, 82}
-	colorFlag     = rgb{226, 88, 74}
 )
 
 type rgb struct {
@@ -82,8 +87,8 @@ type rgb struct {
 // stats pulled out of the summary (time, avg pace, avg watts, calories), a
 // ruled table whose remaining rows — if the workout has splits or intervals
 // — are the per-piece breakdown, and a closing brand/date footer. The
-// single fastest piece (by Pace()) is called out in bold with its PACE tick
-// drawn in flag red rather than brass. The whole card has rounded corners
+// single fastest piece (by Pace()) is called out in bold text, its PACE
+// underline brass like every other row. The whole card has rounded corners
 // (transparent PNG corners), a thin outer border, and an inset rule
 // mimicking a double-ruled plaque edge. It returns the PNG-encoded bytes.
 func RenderResultPNG(result concept2.Result) ([]byte, error) {
@@ -128,16 +133,14 @@ func RenderResultPNG(result concept2.Result) ([]byte, error) {
 	}
 
 	// header + hero stats + footer, plus — only when there are splits or
-	// intervals to show — breathing room, the column-header row, per-piece
-	// rows (+ "+N more" line if truncated), and bottom padding. A result
-	// with no pieces (e.g. JustRow) has no table at all, so its card ends
-	// right after the hero stats band.
+	// intervals to show — breathing room, the column-header row, the table
+	// body (per-piece rows, a rest-time annotation row after any piece that
+	// reports one, and a "+N more" line if truncated), and bottom padding.
+	// A result with no pieces (e.g. JustRow) has no table at all, so its
+	// card ends right after the hero stats band.
 	height := headerHeight + heroStatsHeight
 	if hasPieces {
-		height += tableTopPad + tableHeaderHeight + rowCount*tableRowHeight
-		if truncated {
-			height += tableRowHeight
-		}
+		height += tableTopPad + tableHeaderHeight + tableBodyHeight(pieces, rowCount, truncated)
 		height += tableBottomPad
 	}
 	height += footerHeight
@@ -477,13 +480,13 @@ type splitsColumn struct {
 // result with no split/interval breakdown) — RenderResultPNG skips the
 // table, including its column headings, entirely in that case. Rows are
 // separated by hairline rules rather than zebra shading; the single fastest
-// piece (by Pace()) gets bold text and its PACE cell's tick drawn in flag
-// red instead of brass.
+// piece (by Pace()) gets bold text, same as every other row's brass PACE
+// underline.
 func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCount int, truncated bool, headerTop float64) {
 	columns := []splitsColumn{
 		{"TIME", 1.05, func(p concept2.Split) string { return formatDuration(p.Time) }},
 		{"DIST", 1.05, func(p concept2.Split) string { return formatDistance(p.Distance) }},
-		{"PACE", 1.45, paceString},
+		{"PACE", 1.05, paceString},
 		{"WATTS", 0.85, wattsString},
 		{"CAL", 0.8, func(p concept2.Split) string { return strconv.Itoa(p.Calories) }},
 		{"S/M", 0.8, func(p concept2.Split) string { return strconv.Itoa(p.StrokeRate) }},
@@ -498,10 +501,13 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 	}
 
 	paceColIdx := -1
+	timeColIdx := -1
 	for i, c := range columns {
-		if c.label == "PACE" {
+		switch c.label {
+		case "PACE":
 			paceColIdx = i
-			break
+		case "TIME":
+			timeColIdx = i
 		}
 	}
 
@@ -539,9 +545,10 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 
 	rowsTop := headerTop + tableHeaderHeight
 
-	// Pace range across the drawn rows, used to size each row's pace tick
-	// and to identify the single fastest piece. minPace tracks the fastest
-	// (smallest, since pace is time-per-500m) split; maxPace the slowest.
+	// Pace range across the drawn rows, used to size each row's pace
+	// underline and to identify the single fastest piece. minPace tracks
+	// the fastest (smallest, since pace is time-per-500m) split; maxPace
+	// the slowest.
 	var minPace, maxPace int64
 	if paceColIdx >= 0 {
 		for r := 0; r < rowCount; r++ {
@@ -558,9 +565,10 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 		}
 	}
 
+	cursorY := rowsTop
 	for r := 0; r < rowCount; r++ {
 		p := pieces[r]
-		rowY := rowsTop + float64(r)*tableRowHeight
+		rowY := cursorY
 		rowCenterY := rowY + tableRowHeight/2
 
 		if r > 0 {
@@ -594,22 +602,33 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 			val := c.value(p)
 			cx := colX[i] + colWidths[i] - 8
 
-			if i == paceColIdx && pace > 0 {
-				textW, _ := dc.MeasureString(val)
-				tickColor := colorBrass
-				if isFastest {
-					tickColor = colorFlag
-				}
-				drawPaceTick(dc, cx-textW-8, rowCenterY, frac, tickColor)
-			}
-
 			setColor(dc, colorInk)
 			dc.DrawStringAnchored(val, cx, rowCenterY, 1, 0.5)
+
+			if i == paceColIdx && pace > 0 {
+				textW, _ := dc.MeasureString(val)
+				drawPaceUnderline(dc, cx, textW, rowCenterY, frac)
+			}
+		}
+
+		cursorY += tableRowHeight
+
+		if p.RestTime > 0 {
+			setColor(dc, colorRuleSoft)
+			dc.DrawLine(float64(marginX), cursorY, float64(canvasWidth-marginX), cursorY)
+			dc.SetLineWidth(1)
+			dc.Stroke()
+
+			restCenterY := cursorY + restRowHeight/2
+			timeColRightX := colX[timeColIdx] + colWidths[timeColIdx] - 8
+			drawRestRow(dc, timeColRightX, restCenterY, p.RestTime)
+
+			cursorY += restRowHeight
 		}
 	}
 
 	if truncated {
-		moreY := rowsTop + float64(rowCount)*tableRowHeight
+		moreY := cursorY
 		setColor(dc, colorInkSoft)
 		moreFace := loadFace(fontMono, 13)
 		dc.SetFontFace(moreFace)
@@ -618,26 +637,51 @@ func drawSplitsTable(dc *gg.Context, pieces []concept2.Split, hasHR bool, rowCou
 	}
 }
 
-// drawPaceTick draws a thin ruled tick to the left of a row's PACE value —
-// a faint full-width track with a filled portion sized by frac (0 slowest
-// drawn split .. 1 fastest) — so a glance down the column shows the pacing
-// trend the way a filled chip would, without a heavy colored block
-// competing with the ledger's ruled-paper restraint. fillColor is brass for
-// ordinary rows, or flag red for the fastest.
-func drawPaceTick(dc *gg.Context, rightX, centerY, frac float64, fillColor rgb) {
-	const trackW, trackH = 36.0, 3.0
-	const minFillFrac = 0.18
+// tableBodyHeight returns the pixel height of the splits table body: one
+// tableRowHeight per drawn piece (rowCount of them), plus one
+// restRowHeight for each of those pieces that reports a rest time (see
+// drawRestRow), plus one more tableRowHeight if the workout has more pieces
+// than fit (the "+N more" line). RenderResultPNG uses this to size the
+// canvas before drawSplitsTable lays out the same rows.
+func tableBodyHeight(pieces []concept2.Split, rowCount int, truncated bool) int {
+	height := rowCount * tableRowHeight
+	for _, p := range pieces[:rowCount] {
+		if p.RestTime > 0 {
+			height += restRowHeight
+		}
+	}
+	if truncated {
+		height += tableRowHeight
+	}
+	return height
+}
 
-	trackX := rightX - trackW
-	trackY := centerY - trackH/2
+// drawRestRow draws a single-line annotation for an interval's rest time,
+// right-aligned at the TIME column's right edge like the piece row above
+// it, prefixed with "r" (e.g. "r3:00.0") and set smaller and muted so it
+// reads as a note rather than another scored piece.
+func drawRestRow(dc *gg.Context, timeColRightX, centerY float64, restTenths int64) {
+	dc.SetFontFace(loadFace(fontMono, 12))
+	setColor(dc, colorInkSoft)
+	dc.DrawStringAnchored("r"+formatDuration(restTenths), timeColRightX, centerY, 1, 0.5)
+}
 
-	setColor(dc, colorRuleSoft)
-	dc.DrawRectangle(trackX, trackY, trackW, trackH)
-	dc.Fill()
+// drawPaceUnderline draws a brass underline beneath a row's PACE value,
+// right-aligned under the text's own right edge (rightX) and sized by frac
+// (0 slowest drawn split .. 1 fastest): a full-width underline under the
+// fastest split's pace, tapering to a shorter stub for the slowest — so a
+// glance down the column still shows the pacing trend, without a separate
+// column of its own competing for width.
+func drawPaceUnderline(dc *gg.Context, rightX, textW, textCenterY, frac float64) {
+	const minFillFrac = 0.35
+	const lineH = 2.0
+	const gapBelowText = 11.0
 
-	fillFrac := minFillFrac + frac*(1-minFillFrac)
-	setColor(dc, fillColor)
-	dc.DrawRectangle(trackX, trackY, trackW*fillFrac, trackH)
+	lineW := textW * (minFillFrac + frac*(1-minFillFrac))
+	lineY := textCenterY + gapBelowText
+
+	setColor(dc, colorBrass)
+	dc.DrawRectangle(rightX-lineW, lineY, lineW, lineH)
 	dc.Fill()
 }
 
@@ -703,17 +747,16 @@ func setColor(dc *gg.Context, c rgb) {
 //   - Bike (orange 0xED7D31): "bike". Note the API's documented value is
 //     "bike", not "bikeerg" — an earlier version of this switch checked for
 //     "bikeerg", which never matched a real API response and silently fell
-//     through to the generic default branch instead of showing the BikeErg
-//     branding. The display label is still "BikeErg" even though the match
-//     key has no "erg" suffix.
+//     through to the generic default branch instead of showing the Cycling
+//     branding.
 //   - Paddle (teal 0x2FA89A) and MultiErg (purple 0x8B5FBF) are distinct
 //     enough product categories to get their own accent colors rather than
 //     being folded into another family.
 //
 // The color is currently unused by RenderResultPNG — the "Regatta Ledger"
-// design deliberately stays to a fixed navy/brass/flag-red palette rather
-// than tinting each card by sport — but the mapping is kept (and tested)
-// since it's part of this function's documented contract and may still be
+// design deliberately stays to a fixed navy/brass palette rather than
+// tinting each card by sport — but the mapping is kept (and tested) since
+// it's part of this function's documented contract and may still be
 // useful to callers outside this package (e.g. a Discord embed's side
 // color).
 //
@@ -739,15 +782,15 @@ func sportLabelAndColor(sportType string) (string, int) {
 	case "water":
 		return "Water", defaultColor
 	case "skierg":
-		return "SkiErg", skiColor
+		return "Skiing", skiColor
 	case "snow":
 		return "Snow", skiColor
 	case "rollerski":
 		return "Roller Ski", skiColor
 	case "bike":
-		return "BikeErg", bikeColor
+		return "Cycling", bikeColor
 	case "paddle":
-		return "Paddle", paddleColor
+		return "Paddling", paddleColor
 	case "multierg":
 		return "MultiErg", multiColor
 	case "":

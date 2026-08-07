@@ -11,6 +11,53 @@ import (
 	"github.com/google/uuid"
 )
 
+const getDiscordGuildByGuildID = `-- name: GetDiscordGuildByGuildID :one
+SELECT id, guild_id, guild_name, created_at, updated_at FROM discord_guilds WHERE guild_id = $1 LIMIT 1
+`
+
+func (q *Queries) GetDiscordGuildByGuildID(ctx context.Context, guildID string) (DiscordGuild, error) {
+	row := q.db.QueryRow(ctx, getDiscordGuildByGuildID, guildID)
+	var i DiscordGuild
+	err := row.Scan(
+		&i.ID,
+		&i.GuildID,
+		&i.GuildName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listDiscordGuilds = `-- name: ListDiscordGuilds :many
+SELECT id, guild_id, guild_name, created_at, updated_at FROM discord_guilds
+`
+
+func (q *Queries) ListDiscordGuilds(ctx context.Context) ([]DiscordGuild, error) {
+	rows, err := q.db.Query(ctx, listDiscordGuilds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DiscordGuild{}
+	for rows.Next() {
+		var i DiscordGuild
+		if err := rows.Scan(
+			&i.ID,
+			&i.GuildID,
+			&i.GuildName,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertDiscordGuild = `-- name: UpsertDiscordGuild :one
 INSERT INTO discord_guilds (id, guild_id, guild_name, created_at, updated_at)
 VALUES ($1, $2, $3, NOW(), NOW())

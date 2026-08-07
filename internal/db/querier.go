@@ -12,16 +12,19 @@ import (
 )
 
 type Querier interface {
+	CountDiscordRegistrationsByGuild(ctx context.Context, guildID string) (int64, error)
 	CountRecentPasswordResetsByEmail(ctx context.Context, email string) (int64, error)
 	CountRecentVerificationCodesByUserID(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (OauthIdentity, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserNoPassword(ctx context.Context, arg CreateUserNoPasswordParams) (User, error)
+	DeleteDiscordRegistration(ctx context.Context, arg DeleteDiscordRegistrationParams) error
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	DeleteOAuthIdentity(ctx context.Context, id uuid.UUID) error
 	DeleteStalePasswordResetTokens(ctx context.Context) (int64, error)
 	DeleteStaleVerificationCodes(ctx context.Context) (int64, error)
 	DeleteUserByID(ctx context.Context, id uuid.UUID) error
+	GetDiscordGuildByGuildID(ctx context.Context, guildID string) (DiscordGuild, error)
 	GetDiscordRegistration(ctx context.Context, arg GetDiscordRegistrationParams) (DiscordRegistration, error)
 	GetGuildSettings(ctx context.Context, guildID string) (DiscordGuildSetting, error)
 	GetOAuthIdentityByProviderUserID(ctx context.Context, arg GetOAuthIdentityByProviderUserIDParams) (OauthIdentity, error)
@@ -40,6 +43,8 @@ type Querier interface {
 	InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (RefreshToken, error)
 	LinkDiscordRegistrationToUser(ctx context.Context, arg LinkDiscordRegistrationToUserParams) error
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID uuid.UUID) ([]RefreshToken, error)
+	ListConfiguredGuildIDs(ctx context.Context) ([]string, error)
+	ListDiscordGuilds(ctx context.Context) ([]DiscordGuild, error)
 	ListDiscordRegistrationsByUser(ctx context.Context, userID pgtype.UUID) ([]DiscordRegistration, error)
 	ListOAuthIdentitiesByUser(ctx context.Context, userID uuid.UUID) ([]OauthIdentity, error)
 	LockAccount(ctx context.Context, arg LockAccountParams) error
@@ -49,6 +54,7 @@ type Querier interface {
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
+	SetSetupProgress(ctx context.Context, arg SetSetupProgressParams) error
 	UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error
 	UpdateRefreshTokenLastUsed(ctx context.Context, arg UpdateRefreshTokenLastUsedParams) error
 	UpsertDiscordGuild(ctx context.Context, arg UpsertDiscordGuildParams) (DiscordGuild, error)

@@ -85,6 +85,44 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 	})
 
+	// The access_token cookie's own Expires matches the JWT's exp, so once
+	// that time passes most browsers stop sending it outright rather than
+	// keep sending an expired one — meaning "no access_token cookie at all,
+	// but a still-valid refresh_token" is the common real-world shape of an
+	// expired session, not "access_token present but ValidateAccessToken
+	// rejects it as expired". Both must get the same recovery attempt.
+	t.Run("missing token with refresh cookie redirects to silent-refresh", func(t *testing.T) {
+		t.Parallel()
+		req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+		req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "rt-123"})
+		rr := httptest.NewRecorder()
+		protected.ServeHTTP(rr, req)
+		if rr.Code != http.StatusFound {
+			t.Errorf("got %d, want 302", rr.Code)
+		}
+		if got := rr.Header().Get("Location"); got != "/auth/silent-refresh?next=%2Fdashboard" {
+			t.Errorf("redirect = %q, want silent-refresh with next=/dashboard", got)
+		}
+	})
+
+	t.Run("missing token with refresh cookie sets HX-Trigger for HTMX requests", func(t *testing.T) {
+		t.Parallel()
+		req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+		req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "rt-123"})
+		req.Header.Set("HX-Request", "true")
+		rr := httptest.NewRecorder()
+		protected.ServeHTTP(rr, req)
+		if rr.Header().Get("HX-Trigger") != "token-expired" {
+			t.Errorf("expected HX-Trigger: token-expired, got %q", rr.Header().Get("HX-Trigger"))
+		}
+		if got := rr.Header().Get("HX-Redirect"); got != "" {
+			t.Errorf("expected no HX-Redirect alongside HX-Trigger: token-expired, got %q", got)
+		}
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("got %d, want 401", rr.Code)
+		}
+	})
+
 	t.Run("expired token sets HX-Trigger for HTMX requests", func(t *testing.T) {
 		t.Parallel()
 		token := makeTestToken(t, userID, -time.Second)
@@ -95,6 +133,17 @@ func TestAuthMiddleware(t *testing.T) {
 		protected.ServeHTTP(rr, req)
 		if rr.Header().Get("HX-Trigger") != "token-expired" {
 			t.Errorf("expected HX-Trigger: token-expired, got %q", rr.Header().Get("HX-Trigger"))
+		}
+		// Must NOT also set HX-Redirect: htmx processes both headers from the
+		// same response in one pass, firing the trigger and then immediately
+		// following the redirect — which would always beat app.js's async
+		// silent-refresh attempt and send the user to "/" regardless of
+		// whether the refresh would have succeeded.
+		if got := rr.Header().Get("HX-Redirect"); got != "" {
+			t.Errorf("expected no HX-Redirect alongside HX-Trigger: token-expired, got %q", got)
+		}
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("got %d, want 401", rr.Code)
 		}
 	})
 }

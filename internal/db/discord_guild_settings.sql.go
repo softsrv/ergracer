@@ -12,7 +12,7 @@ import (
 )
 
 const getGuildSettings = `-- name: GetGuildSettings :one
-SELECT id, guild_id, report_channel_id, set_by_user_id, created_at, updated_at FROM discord_guild_settings WHERE guild_id = $1 LIMIT 1
+SELECT id, guild_id, report_channel_id, set_by_user_id, created_at, updated_at, channel_name FROM discord_guild_settings WHERE guild_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetGuildSettings(ctx context.Context, guildID string) (DiscordGuildSetting, error) {
@@ -25,24 +25,51 @@ func (q *Queries) GetGuildSettings(ctx context.Context, guildID string) (Discord
 		&i.SetByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ChannelName,
 	)
 	return i, err
 }
 
+const listConfiguredGuildIDs = `-- name: ListConfiguredGuildIDs :many
+SELECT guild_id FROM discord_guild_settings
+`
+
+func (q *Queries) ListConfiguredGuildIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listConfiguredGuildIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var guild_id string
+		if err := rows.Scan(&guild_id); err != nil {
+			return nil, err
+		}
+		items = append(items, guild_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertGuildSettings = `-- name: UpsertGuildSettings :one
-INSERT INTO discord_guild_settings (id, guild_id, report_channel_id, set_by_user_id, created_at, updated_at)
-VALUES ($1, $2, $3, $4, NOW(), NOW())
+INSERT INTO discord_guild_settings (id, guild_id, report_channel_id, channel_name, set_by_user_id, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 ON CONFLICT (guild_id) DO UPDATE
     SET report_channel_id = EXCLUDED.report_channel_id,
+        channel_name      = EXCLUDED.channel_name,
         set_by_user_id    = EXCLUDED.set_by_user_id,
         updated_at        = NOW()
-RETURNING id, guild_id, report_channel_id, set_by_user_id, created_at, updated_at
+RETURNING id, guild_id, report_channel_id, set_by_user_id, created_at, updated_at, channel_name
 `
 
 type UpsertGuildSettingsParams struct {
 	ID              uuid.UUID `json:"id"`
 	GuildID         string    `json:"guild_id"`
 	ReportChannelID string    `json:"report_channel_id"`
+	ChannelName     string    `json:"channel_name"`
 	SetByUserID     string    `json:"set_by_user_id"`
 }
 
@@ -51,6 +78,7 @@ func (q *Queries) UpsertGuildSettings(ctx context.Context, arg UpsertGuildSettin
 		arg.ID,
 		arg.GuildID,
 		arg.ReportChannelID,
+		arg.ChannelName,
 		arg.SetByUserID,
 	)
 	var i DiscordGuildSetting
@@ -61,6 +89,7 @@ func (q *Queries) UpsertGuildSettings(ctx context.Context, arg UpsertGuildSettin
 		&i.SetByUserID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ChannelName,
 	)
 	return i, err
 }

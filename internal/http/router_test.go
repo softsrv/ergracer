@@ -1,0 +1,109 @@
+package http_test
+
+import (
+	"context"
+	"html/template"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"testing/fstest"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/softsrv/rowbot/internal/auth"
+	httpapp "github.com/softsrv/rowbot/internal/http"
+	"github.com/softsrv/rowbot/internal/http/handlers"
+)
+
+const routerTestJWTSecret = "router-test-secret-that-is-at-least-32-bytes!!"
+
+var routerTestTemplateFS = fstest.MapFS{
+	"templates/base.html": &fstest.MapFile{Data: []byte(
+		`{{define "base.html"}}<!doctype html><html><body>{{block "content" .}}{{end}}</body></html>{{end}}`,
+	)},
+	"templates/landing.html": &fstest.MapFile{Data: []byte(
+		`{{define "content"}}landing{{end}}`,
+	)},
+}
+
+func newRouterTestRenderer(t *testing.T) *handlers.TemplateRenderer {
+	t.Helper()
+	base, err := template.ParseFS(routerTestTemplateFS, "templates/base.html")
+	if err != nil {
+		t.Fatalf("parse base template: %v", err)
+	}
+	return handlers.NewTemplateRenderer(base, routerTestTemplateFS, "templates")
+}
+
+func newRouterTestToken(t *testing.T, expiry time.Duration) string {
+	t.Helper()
+	tp, err := auth.IssueAccessToken(uuid.New(), "test@example.com", routerTestJWTSecret, expiry)
+	if err != nil {
+		t.Fatalf("IssueAccessToken: %v", err)
+	}
+	return tp.AccessToken
+}
+
+// TestLandingPage_MissingTokenWithRefreshCookieAttemptsSilentRefresh guards
+// against the landing page ("/") stranding a visitor with an expired access
+// token: unlike every route behind authMW, "/" does its own inline check for
+// a valid access_token cookie rather than going through
+// middleware.Authenticate, so it must independently mirror that middleware's
+// refresh-token recovery path or a session that expired while sitting on "/"
+// never gets a chance to recover.
+func TestLandingPage_MissingTokenWithRefreshCookieAttemptsSilentRefresh(t *testing.T) {
+	t.Parallel()
+	router := httpapp.NewRouter(context.Background(), httpapp.RouterConfig{
+		Renderer:  newRouterTestRenderer(t),
+		JWTSecret: routerTestJWTSecret,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "rt-123"})
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Errorf("got %d, want 302", rr.Code)
+	}
+	if got := rr.Header().Get("Location"); got != "/auth/silent-refresh?next=/dashboard" {
+		t.Errorf("redirect = %q, want silent-refresh with next=/dashboard", got)
+	}
+}
+
+func TestLandingPage_NoCookiesShowsLandingPage(t *testing.T) {
+	t.Parallel()
+	router := httpapp.NewRouter(context.Background(), httpapp.RouterConfig{
+		Renderer:  newRouterTestRenderer(t),
+		JWTSecret: routerTestJWTSecret,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("got %d, want 200", rr.Code)
+	}
+}
+
+func TestLandingPage_ValidAccessTokenRedirectsToDashboard(t *testing.T) {
+	t.Parallel()
+	router := httpapp.NewRouter(context.Background(), httpapp.RouterConfig{
+		Renderer:  newRouterTestRenderer(t),
+		JWTSecret: routerTestJWTSecret,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: newRouterTestToken(t, 15*time.Minute)})
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusFound {
+		t.Errorf("got %d, want 302", rr.Code)
+	}
+	if got := rr.Header().Get("Location"); got != "/dashboard" {
+		t.Errorf("redirect = %q, want /dashboard", got)
+	}
+}
