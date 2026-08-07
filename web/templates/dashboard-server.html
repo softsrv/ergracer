@@ -17,13 +17,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
           </svg>
         </div>
-        <ul tabindex="0" class="dropdown-content menu z-10 w-64 rounded-box bg-base-100 p-2 shadow">
+        <ul tabindex="0" class="dropdown-content menu z-10 w-45 rounded-box bg-base-100 p-2 shadow">
           {{$currentGuildID := .CurrentGuildID}}
           {{range .UserGuilds}}
           <li>
             <a href="/dashboard/servers/{{.GuildID}}" class="{{if eq .GuildID $currentGuildID}}active{{end}} flex items-center justify-between gap-2">
               <span class="truncate">{{.GuildName}}</span>
-              {{if .IsAdmin}}<span class="badge badge-xs badge-primary">admin</span>{{end}}
             </a>
           </li>
           {{end}}
@@ -36,7 +35,11 @@
     </div>
 
     {{if .ChannelConfigured}}
+    {{if .ChannelName}}
     <div class="text-sm text-base-content/70">Posting results to <span class="font-medium">#{{.ChannelName}}</span></div>
+    {{else}}
+    <div class="text-sm text-base-content/70">A results channel is configured.</div>
+    {{end}}
     {{else}}
     <div class="text-sm text-base-content/70">
       No channel configured yet. Go to the channel you want results in and run
@@ -53,7 +56,7 @@
     <button hx-post="/dashboard/servers/{{.GuildID}}/unregister"
             hx-confirm="Unregister from {{.GuildName}}?"
             hx-disable="this"
-            class="btn btn-sm btn-ghost text-error w-fit">Unregister</button>
+            class="btn btn-sm btn-error btn-outline text-error w-fit">Unregister</button>
     {{else}}
     <div class="text-base-content/70">You're not registered in this server.</div>
     <form hx-post="/profile/discord-registration" hx-disable="find button">

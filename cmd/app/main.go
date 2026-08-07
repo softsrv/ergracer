@@ -335,7 +335,7 @@ func mustLoadConfig() config {
 		cfg.JWTAccessExpiry = 15 * time.Minute
 	}
 
-	cfg.RefreshTokenExpiry, err = time.ParseDuration(getEnvOrDefault("REFRESH_TOKEN_EXPIRY", "720h"))
+	cfg.RefreshTokenExpiry, err = time.ParseDuration(getEnvOrDefault("REFRESH_TOKEN_EXPIRY", "120h"))
 	if err != nil {
 		cfg.RefreshTokenExpiry = 720 * time.Hour
 	}
@@ -362,18 +362,18 @@ func mustLoadConfig() config {
 		}
 	}
 
-	cfg.DiscordClientID = os.Getenv("DISCORD_CLIENT_ID")
-	cfg.DiscordClientSecret = os.Getenv("DISCORD_CLIENT_SECRET")
+	cfg.DiscordClientID = mustGetEnv("DISCORD_CLIENT_ID")
+	cfg.DiscordClientSecret = mustGetEnv("DISCORD_CLIENT_SECRET")
 	cfg.DiscordBotPermissions, err = strconv.Atoi(getEnvOrDefault("DISCORD_BOT_PERMISSIONS", "0"))
 	if err != nil {
 		cfg.DiscordBotPermissions = 0
 	}
-	cfg.DiscordPublicKey = os.Getenv("DISCORD_PUBLIC_KEY")
-	cfg.DiscordApplicationID = os.Getenv("DISCORD_APPLICATION_ID")
+	cfg.DiscordPublicKey = mustGetEnv("DISCORD_PUBLIC_KEY")
+	cfg.DiscordApplicationID = mustGetEnv("DISCORD_APPLICATION_ID")
 	cfg.DiscordBotToken = os.Getenv("DISCORD_BOT_TOKEN")
 
-	cfg.Concept2ClientID = os.Getenv("CONCEPT2_CLIENT_ID")
-	cfg.Concept2ClientSecret = os.Getenv("CONCEPT2_CLIENT_SECRET")
+	cfg.Concept2ClientID = mustGetEnv("CONCEPT2_CLIENT_ID")
+	cfg.Concept2ClientSecret = mustGetEnv("CONCEPT2_CLIENT_SECRET")
 	cfg.Concept2APIBase = getEnvOrDefault("CONCEPT2_API_BASE", "https://log.concept2.com")
 
 	return cfg

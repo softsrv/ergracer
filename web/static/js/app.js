@@ -33,6 +33,15 @@ document.addEventListener('submit', function (e) {
   if (btn) btn.disabled = true;
 });
 
+// Firefox and Safari restore a bfcache page with the disabled state intact,
+// so a user who presses Back would otherwise find the form unusable.
+window.addEventListener('pageshow', function (e) {
+  if (!e.persisted) return;
+  document.querySelectorAll('form button[type="submit"][disabled], form input[type="submit"][disabled]').forEach(function (btn) {
+    btn.disabled = false;
+  });
+});
+
 // When the server fires the token-expired event, attempt a silent refresh.
 // If it succeeds, replay whichever element triggered the request that failed
 // — re-dispatching its natural default event (submit for forms, click for

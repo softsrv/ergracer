@@ -43,7 +43,7 @@ func (s *stubUserService) RevokeSession(ctx context.Context, userID, tokenID uui
 func authedRequest(t *testing.T, h http.HandlerFunc, userID uuid.UUID, method, target string) (http.Handler, *http.Request) {
 	t.Helper()
 	fetcher := &handlerUserFetcher{user: db.User{ID: userID, Email: "a@b.com", EmailVerified: true}}
-	protected := middleware.Authenticate(fetcher, testJWTSecret)(h)
+	protected := middleware.Authenticate(fetcher, testJWTSecret, false)(h)
 
 	tp, err := auth.IssueAccessToken(userID, "a@b.com", testJWTSecret, 15*time.Minute)
 	if err != nil {

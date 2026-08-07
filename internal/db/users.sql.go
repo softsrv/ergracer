@@ -15,7 +15,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
 VALUES ($1, $2, $3, false, NOW(), NOW())
-RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, created_at, updated_at, setup_progress
+RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -34,9 +34,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.EmailVerified,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SetupProgress,
 	)
 	return i, err
 }
@@ -44,7 +44,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 const createUserNoPassword = `-- name: CreateUserNoPassword :one
 INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
 VALUES ($1, $2, NULL, true, NOW(), NOW())
-RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, created_at, updated_at, setup_progress
+RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at
 `
 
 type CreateUserNoPasswordParams struct {
@@ -62,9 +62,9 @@ func (q *Queries) CreateUserNoPassword(ctx context.Context, arg CreateUserNoPass
 		&i.EmailVerified,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SetupProgress,
 	)
 	return i, err
 }
@@ -79,7 +79,7 @@ func (q *Queries) DeleteUserByID(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, email_verified, failed_login_attempts, locked_until, created_at, updated_at, setup_progress FROM users WHERE email = $1 LIMIT 1
+SELECT id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -92,15 +92,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.EmailVerified,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SetupProgress,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, email_verified, failed_login_attempts, locked_until, created_at, updated_at, setup_progress FROM users WHERE id = $1 LIMIT 1
+SELECT id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -113,9 +113,9 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.EmailVerified,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.SetupProgress,
 	)
 	return i, err
 }

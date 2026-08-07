@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/softsrv/rowbot/internal/auth"
 	"github.com/softsrv/rowbot/internal/db"
@@ -23,7 +25,7 @@ type UserFetcher interface {
 
 // Authenticate validates the JWT from either the cookie or Authorization header,
 // loads the user, and attaches it to the request context.
-func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http.Handler {
+func Authenticate(queries UserFetcher, jwtSecret string, secure bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr := extractToken(r)
@@ -85,6 +87,16 @@ func Authenticate(queries UserFetcher, jwtSecret string) func(http.Handler) http
 			user, err := queries.GetUserByID(r.Context(), userID)
 			if err != nil {
 				slog.WarnContext(r.Context(), "auth: get user by id", "user_id", userID, "error", err)
+				if errors.Is(err, pgx.ErrNoRows) {
+					// The JWT is cryptographically valid and unexpired, but
+					// the user row it points at is gone (deleted account, DB
+					// reset). "/" only checks token validity, not user
+					// existence, so an uncleared cookie here sends the
+					// browser straight back to a protected route that just
+					// bounces it back to "/" again — an infinite redirect
+					// loop. Clearing it breaks that loop on the first hop.
+					clearAuthCookies(w, secure)
+				}
 				respondUnauthorized(w, r)
 				return
 			}
@@ -110,6 +122,31 @@ func extractToken(r *http.Request) string {
 		return strings.TrimPrefix(hdr, "Bearer ")
 	}
 	return ""
+}
+
+// clearAuthCookies expires both auth cookies on the response.
+func clearAuthCookies(w http.ResponseWriter, secure bool) {
+	epoch := time.Unix(0, 0)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  epoch,
+		MaxAge:   -1,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  epoch,
+		MaxAge:   -1,
+	})
 }
 
 func respondUnauthorized(w http.ResponseWriter, r *http.Request) {

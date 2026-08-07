@@ -23,10 +23,10 @@ type DiscordGuildSetting struct {
 	ID              uuid.UUID          `json:"id"`
 	GuildID         string             `json:"guild_id"`
 	ReportChannelID string             `json:"report_channel_id"`
+	ChannelName     string             `json:"channel_name"`
 	SetByUserID     string             `json:"set_by_user_id"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	ChannelName     string             `json:"channel_name"`
 }
 
 type DiscordRegistration struct {
@@ -99,7 +99,7 @@ type User struct {
 	EmailVerified       bool               `json:"email_verified"`
 	FailedLoginAttempts int32              `json:"failed_login_attempts"`
 	LockedUntil         pgtype.Timestamptz `json:"locked_until"`
+	SetupProgress       int32              `json:"setup_progress"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
-	SetupProgress       int32              `json:"setup_progress"`
 }

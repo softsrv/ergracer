@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/softsrv/rowbot/internal/auth"
 	"github.com/softsrv/rowbot/internal/db"
@@ -41,7 +42,7 @@ func TestAuthMiddleware(t *testing.T) {
 	userID := uuid.New()
 	validUser := db.User{ID: userID, Email: "test@example.com"}
 
-	protected := middleware.Authenticate(&stubFetcher{user: validUser}, authTestSecret)(
+	protected := middleware.Authenticate(&stubFetcher{user: validUser}, authTestSecret, false)(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, ok := middleware.UserFromContext(r.Context())
 			if !ok {
@@ -144,6 +145,50 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 		if rr.Code != http.StatusUnauthorized {
 			t.Errorf("got %d, want 401", rr.Code)
+		}
+	})
+
+	// A JWT can be cryptographically valid and unexpired while pointing at a
+	// user row that's gone (deleted account, dev DB reset) — GetUserByID
+	// returns pgx.ErrNoRows in that case, distinct from a transient DB error.
+	// "/" only checks token validity, not user existence, so without clearing
+	// the cookie here the browser bounces forever between "/" (sees a still-
+	// "valid" token, redirects to /dashboard) and /dashboard (fails the user
+	// lookup, redirects back to "/") — a "too many redirects" loop.
+	t.Run("valid token for a deleted user clears cookies instead of looping", func(t *testing.T) {
+		t.Parallel()
+		deletedUserProtected := middleware.Authenticate(&stubFetcher{err: pgx.ErrNoRows}, authTestSecret, false)(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				t.Error("handler should not run when the user lookup fails")
+			}),
+		)
+		token := makeTestToken(t, uuid.New(), 15*time.Minute)
+		req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+		req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+		rr := httptest.NewRecorder()
+		deletedUserProtected.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusSeeOther {
+			t.Errorf("got %d, want 303", rr.Code)
+		}
+		if got := rr.Header().Get("Location"); got != "/" {
+			t.Errorf("redirect = %q, want /", got)
+		}
+
+		var clearedAccess, clearedRefresh bool
+		for _, c := range rr.Result().Cookies() {
+			if c.Name == "access_token" && c.Path == "/" && c.Value == "" && c.MaxAge < 0 {
+				clearedAccess = true
+			}
+			if c.Name == "refresh_token" && c.Path == "/" && c.Value == "" && c.MaxAge < 0 {
+				clearedRefresh = true
+			}
+		}
+		if !clearedAccess {
+			t.Error("expected access_token cookie to be cleared")
+		}
+		if !clearedRefresh {
+			t.Error("expected refresh_token cookie to be cleared")
 		}
 	})
 }

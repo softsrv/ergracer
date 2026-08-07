@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS discord_guilds;
+DROP TABLE IF EXISTS discord_guild_settings;
+DROP TABLE IF EXISTS discord_registrations;
+DROP TABLE IF EXISTS oauth_tokens;
+DROP TABLE IF EXISTS oauth_identities;
+DROP TABLE IF EXISTS email_verification_codes;
+DROP TABLE IF EXISTS password_reset_tokens;
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS users;

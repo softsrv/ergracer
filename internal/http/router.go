@@ -57,7 +57,7 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	ipKey := middleware.IPKeyFunc(cfg.TrustedProxyCount)
 	refreshRL := middleware.NewRateLimiter(ctx, 10, time.Minute, middleware.CookieRefreshTokenKeyFunc)
 
-	authMW := middleware.Authenticate(cfg.Queries, cfg.JWTSecret)
+	authMW := middleware.Authenticate(cfg.Queries, cfg.JWTSecret, cfg.Secure)
 
 	if cfg.OAuthSvc != nil {
 		oauthH := handlers.NewOAuthHandler(cfg.OAuthSvc, cfg.DiscordAuthorizeURL, cfg.DiscordSilentAuthorizeURL, cfg.DiscordLinkAuthorizeURL, cfg.Concept2AuthorizeURL, cfg.DiscordSvc, cfg.DiscordBotToken, nil, cfg.UserSvc, cfg.Secure, cfg.TrustedProxyCount)
