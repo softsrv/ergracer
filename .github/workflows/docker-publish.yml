@@ -1,10 +1,8 @@
 name: Build and publish Docker image
 
 # Only fires on a version tag push (e.g. v1.2.3) — this repo builds and
-# pushes to ECR deliberately, not on every commit to main, so tagging a
-# release is the explicit trigger to ship a new image. Deploying that image
-# (pointing the ECS service at it) is a separate, manual
-# `terraform apply -var image_tag=...` step — see terraform/README notes.
+# pushes to Docker Hub deliberately, not on every commit to main, so tagging
+# a release is the explicit trigger to ship a new image.
 on:
   push:
     tags:
@@ -12,7 +10,9 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for OIDC -> AssumeRoleWithWebIdentity
+
+env:
+  IMAGE_NAME: rowbot
 
 jobs:
   build-and-push:
@@ -24,32 +24,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Short-lived credentials via OIDC — no long-lived AWS keys stored as
-      # repo secrets. Role is provisioned by terraform/github_oidc.tf; its
-      # ARN is `terraform output github_actions_role_arn`.
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Log in to Amazon ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
-
-      # Derives the image tag from the pushed git tag, e.g.
-      # refs/tags/v1.2.3 -> <account>.dkr.ecr.<region>.amazonaws.com/rowbot:v1.2.3.
-      # No "latest" tag: the ECR repo is created with IMMUTABLE tag
-      # mutability (terraform/ecr.tf), which "latest" can't satisfy on a
-      # second push, and terraform/variables.tf's image_tag has no default
-      # for the same reason — every deploy should name an explicit version.
-      - name: Compute image tag
+      # Derives image tags from the pushed git tag, e.g. refs/tags/v1.2.3 ->
+      # docker.io/<user>/rowbot:v1.2.3 and :latest.
+      - name: Compute image tags
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern={{version}}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
