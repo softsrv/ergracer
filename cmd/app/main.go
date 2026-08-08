@@ -67,10 +67,6 @@ func main() {
 	cleanupCtx, stopCleanup := context.WithCancel(context.Background())
 
 	// ── Services ──────────────────────────────────────────────────────────────
-	// SMTP_* config is intentionally still loaded (see mustLoadConfig) even
-	// though no code path sends email today — Discord OAuth is the sole
-	// account-creation/login path, so there's no registration/verification/
-	// password-reset email to send. It's kept as general infra for future use.
 	authSvc := app.NewAuthService(queries, pool, app.AuthServiceConfig{
 		JWTSecret:      cfg.JWTSecret,
 		AccessExpiry:   cfg.JWTAccessExpiry,
@@ -78,7 +74,6 @@ func main() {
 		BCryptCost:     cfg.BCryptCost,
 		PasswordMinLen: cfg.PasswordMinLen,
 		AppBaseURL:     cfg.AppBaseURL,
-		AppName:        cfg.SMTPFromName,
 	})
 	userSvc := app.NewUserService(queries)
 	discordSvc := app.NewDiscordService(queries)
@@ -276,12 +271,6 @@ type config struct {
 	RefreshTokenExpiry    time.Duration
 	BCryptCost            int
 	PasswordMinLen        int
-	SMTPHost              string
-	SMTPPort              string
-	SMTPUsername          string
-	SMTPPassword          string
-	SMTPFromEmail         string
-	SMTPFromName          string
 	OAuthTokenEncKey      []byte
 	DiscordClientID       string
 	DiscordClientSecret   string
@@ -296,17 +285,11 @@ type config struct {
 
 func mustLoadConfig() config {
 	cfg := config{
-		AppEnv:        getEnvOrDefault("APP_ENV", "development"),
-		Port:          getEnvOrDefault("PORT", "8080"),
-		AppBaseURL:    mustGetEnv("APP_BASE_URL"),
-		DatabaseURL:   mustGetEnv("DATABASE_URL"),
-		JWTSecret:     mustGetEnv("JWT_SECRET"),
-		SMTPHost:      mustGetEnv("SMTP_HOST"),
-		SMTPPort:      mustGetEnv("SMTP_PORT"),
-		SMTPUsername:  os.Getenv("SMTP_USERNAME"),
-		SMTPPassword:  os.Getenv("SMTP_PASSWORD"),
-		SMTPFromEmail: mustGetEnv("SMTP_FROM_EMAIL"),
-		SMTPFromName:  getEnvOrDefault("SMTP_FROM_NAME", "RowBot"),
+		AppEnv:      getEnvOrDefault("APP_ENV", "development"),
+		Port:        getEnvOrDefault("PORT", "8080"),
+		AppBaseURL:  mustGetEnv("APP_BASE_URL"),
+		DatabaseURL: mustGetEnv("DATABASE_URL"),
+		JWTSecret:   mustGetEnv("JWT_SECRET"),
 	}
 
 	if len(cfg.JWTSecret) < 32 {

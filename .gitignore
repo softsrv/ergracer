@@ -14,3 +14,15 @@ coverage.out
 
 # Compiled CSS output
 web/static/css/dist/*.css
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/backend.hcl
+terraform/bootstrap/.terraform/
+terraform/bootstrap/*.tfstate
+terraform/bootstrap/*.tfstate.*
+!terraform/terraform.tfvars.example
+!terraform/backend.hcl.example

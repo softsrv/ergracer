@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-make dev              # Hot-reload: air (Go) + Tailwind watch + smtp4dev container, all in parallel
+make dev              # Hot-reload: air (Go) + Tailwind watch, in parallel
 make run              # Run without hot-reload
 make build            # Compile to ./bin/app
 make test             # Run unit tests
@@ -60,7 +60,6 @@ Middleware (internal/http/middleware/)  ← auth, rate limiting, security header
 | `internal/app/` | `AuthService` and `UserService` — all auth flows, password reset, email verification |
 | `internal/auth/` | JWT issue/validate, token hashing (SHA-256), refresh/reset/verification token generation |
 | `internal/db/` | sqlc-generated repository code; never edit by hand — regenerate with `make sqlc-generate` |
-| `internal/email/` | `Mailer` interface + `SMTPMailer` impl + `NoopMailer` for tests; email templates |
 | `internal/http/` | Router wiring in `router.go`; handlers and middleware in sub-packages |
 | `internal/users/` | Email normalization and validation, password validation |
 
@@ -98,9 +97,7 @@ pgxpool config: max 25 conns (`DB_MAX_CONNS`), min 5, max lifetime 1h, idle time
 
 ## Environment
 
-Copy `.env.example` to `.env`. Required vars: `DATABASE_URL`, `JWT_SECRET` (≥32 bytes), `APP_BASE_URL`, and all `SMTP_*` vars. `APP_ENV=production` gates JSON logging, secure cookies, and suppresses debug error detail.
-
-For local development, `make dev` starts smtp4dev automatically — SMTP is available at `localhost:2525`, web UI at `http://localhost:5000`.
+Copy `.env.example` to `.env`. Required vars: `DATABASE_URL`, `JWT_SECRET` (≥32 bytes), `APP_BASE_URL`. `APP_ENV=production` gates JSON logging, secure cookies, and suppresses debug error detail.
 
 ## Tech constraints
 

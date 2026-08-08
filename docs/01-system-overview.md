@@ -61,10 +61,6 @@ Cross-cutting concerns (auth, logging, security headers, body-size limit, rate l
 │   ├── users/                   # User domain helpers (not the service layer)
 │   │   └── validate.go          # Email normalization, password validation
 │   │
-│   ├── email/                   # Email sending abstraction
-│   │   ├── mailer.go            # Interface + SMTP implementation
-│   │   └── templates.go         # Email body rendering (text/html)
-│   │
 │   └── http/
 │       ├── middleware/
 │       │   ├── auth.go            # JWT validation, user-to-context injection

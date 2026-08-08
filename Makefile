@@ -1,9 +1,6 @@
 APP_NAME         := rowbot
 BIN_DIR          := ./bin
 MODULE           := github.com/softsrv/rowbot
-SMTP4DEV_NAME    := $(APP_NAME)-smtp4dev
-SMTP4DEV_SMTP    := 2525
-SMTP4DEV_WEB     := 5000
 
 # Load .env if present (for local dev convenience)
 -include .env
@@ -11,17 +8,16 @@ export
 
 .PHONY: dev stop run build test fmt lint \
         daisyui-install tailwind tailwind-watch \
-        smtp4dev smtp4dev-stop \
         migrate-up migrate-down migrate-create migrate-status \
         sqlc-generate db-reset \
         docker-build docker-run prod clean
 
 ## ── Development ─────────────────────────────────────────────────────────────
 
-# Full hot-reload: smtp4dev container + Go (air) + Tailwind watch in parallel.
-# trap 'kill 0' ensures Ctrl+C kills the entire process group, including air's
-# spawned ./tmp/main grandchild that recursive make -j2 would leave behind.
-dev: smtp4dev
+# Full hot-reload: Go (air) + Tailwind watch in parallel. trap 'kill 0'
+# ensures Ctrl+C kills the entire process group, including air's spawned
+# ./tmp/main grandchild that recursive make -j2 would leave behind.
+dev:
 	@trap 'kill 0' INT TERM; \
 	  air & \
 	  tailwindcss -i ./web/static/css/app.css -o ./web/static/css/dist/app.css --watch & \
@@ -32,22 +28,6 @@ stop:
 	@pkill -f './tmp/main' 2>/dev/null || true
 	@pkill -f 'air$$' 2>/dev/null || true
 	@pkill -f 'tailwindcss.*--watch' 2>/dev/null || true
-	@$(MAKE) smtp4dev-stop
-
-smtp4dev:
-	@if [ -z "$$(docker ps -q -f name=^$(SMTP4DEV_NAME)$$)" ]; then \
-	  docker rm -f $(SMTP4DEV_NAME) 2>/dev/null || true; \
-	  docker run -d --name $(SMTP4DEV_NAME) \
-	    -p $(SMTP4DEV_SMTP):25 \
-	    -p $(SMTP4DEV_WEB):80 \
-	    rnwood/smtp4dev; \
-	  echo "smtp4dev started — SMTP: localhost:$(SMTP4DEV_SMTP)  Web UI: http://localhost:$(SMTP4DEV_WEB)"; \
-	else \
-	  echo "smtp4dev already running"; \
-	fi
-
-smtp4dev-stop:
-	docker rm -f $(SMTP4DEV_NAME) 2>/dev/null || true
 
 air:
 	air

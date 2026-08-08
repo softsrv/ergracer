@@ -43,7 +43,6 @@ func testAuthService(t *testing.T, pool *pgxpool.Pool) *app.AuthService {
 		BCryptCost:     12,
 		PasswordMinLen: 8,
 		AppBaseURL:     "http://localhost:8080",
-		AppName:        "TestApp",
 	})
 }
 

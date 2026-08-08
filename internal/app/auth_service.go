@@ -48,7 +48,6 @@ type AuthServiceConfig struct {
 	BCryptCost     int
 	PasswordMinLen int
 	AppBaseURL     string
-	AppName        string
 }
 
 // AuthService handles all authentication business logic. Account creation and

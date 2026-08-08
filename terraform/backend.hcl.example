@@ -1,0 +1,5 @@
+bucket         = "rowbot-terraform-state"
+key            = "prod/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "rowbot-terraform-state-locks"
+encrypt        = true
