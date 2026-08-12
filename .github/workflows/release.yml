@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to deploy (must match a pushed git tag, e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate version format
+        run: |
+          if ! [[ "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'${VERSION}' is not a valid release version — expected format: vX.Y.Z (e.g. v0.1.0)"
+            exit 1
+          fi
+        env:
+          VERSION: ${{ inputs.version }}
+
+      # Confirms this version was actually released (a matching git tag was
+      # pushed, which is what triggers docker-publish.yml to build and push
+      # the image) rather than deploying an arbitrary/typo'd version that was
+      # never built.
+      - name: Verify version matches a real release
+        id: check
+        run: |
+          if ! gh api "repos/${{ github.repository }}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "::error::No git tag '${VERSION}' found in ${{ github.repository }} — this version was never released."
+            exit 1
+          fi
+          echo "found release tag: ${VERSION}"
+
+          # docker/metadata-action's semver tag handler strips the leading
+          # "v" when naming the image (see docker-publish.yml) — git tag
+          # v1.2.3 is published to Docker Hub as tag 1.2.3, not v1.2.3.
+          echo "image_tag=${VERSION#v}" >> "$GITHUB_OUTPUT"
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+
+      - name: GCloud Auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: "${{ secrets.GCP_ACCOUNT_JSON }}"
+
+      - name: setup-gcloud-sdk
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Deploy API to Cloud Run
+        run: gcloud run deploy rowbot --image "trriplejay/rowbot:${IMAGE_TAG}" --region us-central1
+        env:
+          IMAGE_TAG: ${{ steps.check.outputs.image_tag }}
