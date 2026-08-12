@@ -10,7 +10,11 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/joho/godotenv"
 )
+
+// envFilePath mirrors cmd/app's — see its comment for why it's a relative path.
+const envFilePath = ".env"
 
 func main() {
 	if err := run(); err != nil {
@@ -20,6 +24,10 @@ func main() {
 }
 
 func run() error {
+	if err := godotenv.Load(envFilePath); err != nil {
+		return fmt.Errorf("load env file %s: %w", envFilePath, err)
+	}
+
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"

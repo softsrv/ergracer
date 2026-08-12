@@ -93,6 +93,13 @@ func NewRouter(ctx context.Context, cfg RouterConfig) http.Handler {
 	mux.HandleFunc("GET /health", handlers.HandleLiveness)
 	mux.HandleFunc("GET /ready", handlers.HandleReadiness(cfg.Pool))
 
+	mux.HandleFunc("GET /terms", func(w http.ResponseWriter, r *http.Request) {
+		cfg.Renderer.Page(w, http.StatusOK, "terms.html", nil)
+	})
+	mux.HandleFunc("GET /privacy", func(w http.ResponseWriter, r *http.Request) {
+		cfg.Renderer.Page(w, http.StatusOK, "privacy.html", nil)
+	})
+
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		// Send an already-authenticated visitor straight to the dashboard;
 		// only send them there for a genuinely valid access token — a stale

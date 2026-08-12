@@ -1,0 +1,152 @@
+{{define "title"}}Privacy Policy — RowBot{{end}}
+
+{{define "main-class"}}px-4{{end}}
+
+{{define "content"}}
+<article class="mx-auto max-w-3xl py-12">
+  <h1 class="text-3xl font-bold tracking-tight">Privacy Policy</h1>
+  <p class="mt-2 text-sm text-base-content/60">Last updated: August 11, 2026</p>
+
+  <div class="mt-8 space-y-8 text-base-content/90 [&_h2]:mt-10 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-semibold [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-1 [&_li]:leading-relaxed [&_table]:w-full [&_table]:text-sm [&_th]:text-left [&_th]:font-semibold [&_th]:pb-1 [&_td]:pr-4 [&_td]:py-1 [&_td]:align-top">
+
+    <p>
+      This Privacy Policy explains what information RowBot ("we", "us", "our", operated by
+      softsrv) collects when you use the Service, how we use it, and the choices you have. It
+      should be read alongside our <a href="/terms" class="link link-primary">Terms of Service</a>.
+    </p>
+
+    <section>
+      <h2>1. Information We Collect</h2>
+
+      <h3>From Discord (when you sign in)</h3>
+      <p>
+        When you log in with Discord, Discord shares your Discord user ID, username, and email
+        address with us. If you're a server manager, we also read the list of servers you manage
+        so we can show you which ones RowBot is available to install on.
+      </p>
+
+      <h3>From Concept2 (when you connect your Logbook)</h3>
+      <p>
+        When you link your Concept2 Logbook account, we store an encrypted access token (and
+        refresh token, if provided) so we can fetch your workout results on your behalf. We do
+        not receive or store your Concept2 password.
+      </p>
+
+      <h3>Workout results</h3>
+      <p>
+        We do not store your workout history. When Concept2 notifies us that you've logged an
+        activity, we fetch the details for that single result directly from Concept2's API,
+        render it into an image, post it to your configured Discord channel, and discard it — we
+        keep no historical record of your workouts in our database.
+      </p>
+
+      <h3>Discord server registrations</h3>
+      <p>
+        If you register to receive results in a Discord server (via the site or the
+        <code class="rounded bg-base-300 px-1.5 py-0.5 text-xs">/setchannel</code> flow), we store
+        your Discord user ID, Discord username, and the server (guild) ID and name.
+      </p>
+
+      <h3>Session &amp; security data</h3>
+      <p>
+        To keep you signed in, we store a hashed (not plaintext) refresh token, plus the device
+        type, IP address, and browser/user-agent string associated with each login session, so you
+        can view and revoke your active sessions from your profile page.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. How We Use Information</h2>
+      <ul>
+        <li>To authenticate you and keep you signed in</li>
+        <li>To fetch your workout results from Concept2 and post them to the Discord channel you've configured</li>
+        <li>To show you which Discord servers you can install or register RowBot to</li>
+        <li>To let you manage your active sessions and revoke access from devices you no longer use</li>
+        <li>To maintain the security and reliability of the Service (e.g. rate limiting, abuse prevention)</li>
+      </ul>
+      <p>We do not use your data for advertising, and we do not sell your data to anyone.</p>
+    </section>
+
+    <section>
+      <h2>3. How We Share Information</h2>
+      <p>We share information only as necessary for RowBot to function:</p>
+      <ul>
+        <li><strong>Discord</strong> — we post your generated result card to the Discord channel your server has configured, visible to that server's members.</li>
+        <li><strong>Concept2</strong> — we send your access token to Concept2's API to fetch your workout data.</li>
+      </ul>
+      <p>
+        We do not share your data with any other third party, and we do not use third-party
+        advertising or analytics trackers on this site.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Data Retention</h2>
+      <table>
+        <tr><th>Data</th><th>Retention</th></tr>
+        <tr><td>Workout results</td><td>Not stored — fetched, posted, and discarded</td></tr>
+        <tr><td>Refresh tokens (sessions)</td><td>Purged 90 days after expiry or revocation</td></tr>
+        <tr><td>Account data (email, Discord/Concept2 links)</td><td>Kept until you delete your account</td></tr>
+      </table>
+      <p class="mt-3">
+        A background job runs daily to purge expired or stale session and verification records
+        per the schedule above.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Data Security</h2>
+      <ul>
+        <li>Concept2 and Discord access/refresh tokens are encrypted at rest</li>
+        <li>Session tokens are hashed (SHA-256) before storage — the raw token exists only in your browser's cookie</li>
+        <li>Session cookies are <code class="rounded bg-base-300 px-1.5 py-0.5 text-xs">HttpOnly</code>, sent over HTTPS, and never readable by JavaScript</li>
+        <li>We do not store passwords — RowBot has no password-based login at all</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Your Rights &amp; Account Deletion</h2>
+      <p>
+        You can permanently delete your RowBot account and all associated data (linked
+        connections, sessions, and registrations tied to your account) at any time from your
+        profile page. This action is immediate and cannot be undone.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Children's Privacy</h2>
+      <p>
+        RowBot is not directed at children under 13, matching Discord's own minimum age
+        requirement. We do not knowingly collect information from anyone under 13. If you believe
+        a child has provided us data, contact us and we'll remove it.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Cookies</h2>
+      <p>
+        We use two cookies, both strictly necessary for the Service to function: an access token
+        and a refresh token, both used solely to keep you signed in. We do not use tracking,
+        advertising, or analytics cookies.
+      </p>
+    </section>
+
+    <section>
+      <h2>9. Changes to This Policy</h2>
+      <p>
+        We may update this Privacy Policy from time to time. If we make material changes, we'll
+        update the "Last updated" date above.
+      </p>
+    </section>
+
+    <section>
+      <h2>10. Contact</h2>
+      <p>
+        Questions about this Privacy Policy, or requests regarding your data? Reach out at
+        <a href="mailto:softsrv.inc@gmail.com" class="link link-primary">softsrv.inc@gmail.com</a>.
+      </p>
+    </section>
+
+  </div>
+</article>
+{{end}}

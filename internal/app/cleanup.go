@@ -40,18 +40,13 @@ func CleanupTokens(ctx context.Context, q *db.Queries) {
 	if err != nil {
 		slog.Error("token cleanup: delete expired refresh tokens", "error", err)
 	}
-	n2, err := q.DeleteStalePasswordResetTokens(ctx)
-	if err != nil {
-		slog.Error("token cleanup: delete stale password reset tokens", "error", err)
-	}
-	n3, err := q.DeleteStaleVerificationCodes(ctx)
+	n2, err := q.DeleteStaleVerificationCodes(ctx)
 	if err != nil {
 		slog.Error("token cleanup: delete stale verification codes", "error", err)
 	}
 
 	slog.Info("token cleanup complete",
 		"refresh_tokens_deleted", n1,
-		"reset_tokens_deleted", n2,
-		"verification_codes_deleted", n3,
+		"verification_codes_deleted", n2,
 	)
 }

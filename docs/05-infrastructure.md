@@ -89,8 +89,6 @@ All configuration is read from environment variables at startup into a typed `Co
 | `JWT_SECRET`           | Yes      | —             | Min 32 bytes; used for HS256 signing                                |
 | `JWT_ACCESS_EXPIRY`    | No       | `15m`         | Go duration string                                                  |
 | `REFRESH_TOKEN_EXPIRY` | No       | `120h`        | 5 days                                                              |
-| `BCRYPT_COST`          | No       | `12`          | Integer 10–14                                                       |
-| `PASSWORD_MIN_LENGTH`  | No       | `8`           | Integer                                                             |
 | `APP_BASE_URL`         | Yes      | —             | e.g. `https://app.example.com` — used to build OAuth redirect URIs   |
 
 `.env.example` ships with every variable listed, values as `<PLACEHOLDER>`, and a comment explaining each one.
@@ -152,7 +150,7 @@ Unit tests live alongside the code they test (e.g., `internal/auth/jwt_test.go`)
 | -------------------------- | --------------------------------------------------------- | --------------- |
 | JWT issue + validation     | `internal/auth/jwt_test.go`                               | ≥80%            |
 | Token generation + hashing | `internal/auth/tokens_test.go`                            | ≥80%            |
-| Password validation        | `internal/users/validate_test.go`                         | ≥80%            |
+| Email normalization        | `internal/users/validate_test.go`                         | ≥80%            |
 | Auth middleware (mock DB)  | `internal/http/middleware/auth_test.go`                   | ≥70%            |
 | Body-size limit            | `internal/http/middleware/bodylimit_test.go`              | ≥70%            |
 | Rate limiter logic         | `internal/http/middleware/ratelimit_test.go`              | ≥70%            |
@@ -173,7 +171,6 @@ Integration test files use the `//go:build integration` build tag so `make test`
 | --------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Migration up/down                             | Verify schema is applied and reversed cleanly                                        |
 | User repository: create, get by email, update | Full round-trip via real DB                                                          |
-| Login flow                                    | Correct credentials → tokens issued; wrong password → 401; locked account → 423      |
 | Token refresh                                 | Valid token → new access token, same refresh token; revoked/expired → 401            |
 | Session revocation                            | `DELETE /auth/sessions/{id}` revokes only the target token; other user's token → 404 |
 | Rate limiting                                 | Exceed limit → 429; wait → 200 again                                                 |
@@ -219,7 +216,7 @@ make test-integration   # integration tests (requires Docker)
 
 # Deployment
 make prod               # build production Docker image
-docker run --env-file .env app:prod
+docker run -v $(pwd)/.env:/app/.env:ro -p 8080:8080 app:prod
 ```
 
 ## Production Deployment Checklist
@@ -229,6 +226,6 @@ docker run --env-file .env app:prod
 - `DATABASE_URL` points to a production Postgres instance
 - Migrations have been run (`make migrate-up`) before deploying a new image
 - Container runs as UID 1000 (enforced by Dockerfile)
-- No `.env` files are present inside the image
+- No `.env` file is baked into the image — it's bind-mounted read-only to `/app/.env` at container start instead (the app loads it itself via `godotenv` and fails fast if it's missing)
 - `/ready` endpoint is wired to the load balancer health check
 - Log aggregation is consuming the JSON log stream

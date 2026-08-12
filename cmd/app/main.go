@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 
 	"github.com/softsrv/rowbot/internal/app"
 	"github.com/softsrv/rowbot/internal/db"
@@ -29,7 +30,18 @@ import (
 	"github.com/softsrv/rowbot/web"
 )
 
+// envFilePath is where the app expects its .env file, resolved relative to
+// the working directory: the repo root when run locally (go run, air), and
+// /app inside the container (Dockerfile's WORKDIR) — so a Docker deployment
+// must bind-mount its env file to /app/.env.
+const envFilePath = ".env"
+
 func main() {
+	if err := godotenv.Load(envFilePath); err != nil {
+		slog.Error("load env file", "path", envFilePath, "error", err)
+		os.Exit(1)
+	}
+
 	cfg := mustLoadConfig()
 	setupLogger(cfg.AppEnv)
 
@@ -68,12 +80,10 @@ func main() {
 
 	// ── Services ──────────────────────────────────────────────────────────────
 	authSvc := app.NewAuthService(queries, pool, app.AuthServiceConfig{
-		JWTSecret:      cfg.JWTSecret,
-		AccessExpiry:   cfg.JWTAccessExpiry,
-		RefreshExpiry:  cfg.RefreshTokenExpiry,
-		BCryptCost:     cfg.BCryptCost,
-		PasswordMinLen: cfg.PasswordMinLen,
-		AppBaseURL:     cfg.AppBaseURL,
+		JWTSecret:     cfg.JWTSecret,
+		AccessExpiry:  cfg.JWTAccessExpiry,
+		RefreshExpiry: cfg.RefreshTokenExpiry,
+		AppBaseURL:    cfg.AppBaseURL,
 	})
 	userSvc := app.NewUserService(queries)
 	discordSvc := app.NewDiscordService(queries)
@@ -269,8 +279,6 @@ type config struct {
 	JWTSecret             string
 	JWTAccessExpiry       time.Duration
 	RefreshTokenExpiry    time.Duration
-	BCryptCost            int
-	PasswordMinLen        int
 	OAuthTokenEncKey      []byte
 	DiscordClientID       string
 	DiscordClientSecret   string
@@ -321,16 +329,6 @@ func mustLoadConfig() config {
 	cfg.RefreshTokenExpiry, err = time.ParseDuration(getEnvOrDefault("REFRESH_TOKEN_EXPIRY", "120h"))
 	if err != nil {
 		cfg.RefreshTokenExpiry = 720 * time.Hour
-	}
-
-	cfg.BCryptCost, err = strconv.Atoi(getEnvOrDefault("BCRYPT_COST", "12"))
-	if err != nil {
-		cfg.BCryptCost = 12
-	}
-
-	cfg.PasswordMinLen, err = strconv.Atoi(getEnvOrDefault("PASSWORD_MIN_LENGTH", "8"))
-	if err != nil {
-		cfg.PasswordMinLen = 8
 	}
 
 	{

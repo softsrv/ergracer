@@ -32,7 +32,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -40,11 +39,15 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 
 	"github.com/softsrv/rowbot/internal/concept2"
 )
+
+// envFilePath mirrors cmd/app's — see its comment for why it's a relative path.
+const envFilePath = ".env"
 
 // savedResults is the fixture file's top-level shape.
 type savedResults struct {
@@ -54,7 +57,9 @@ type savedResults struct {
 }
 
 func main() {
-	loadDotEnv()
+	// Best-effort: mockc2 is a standalone local testing tool with its own
+	// CLI flags, so unlike cmd/app it works fine with no .env at all.
+	_ = godotenv.Load(envFilePath)
 
 	port := flag.Int("port", 4010, "port to listen on")
 	dataPath := flag.String("data", "cmd/mockc2/testdata/c2_results.json", "path to the results fixture file")
@@ -142,38 +147,6 @@ func main() {
 	fmt.Printf("mockc2: browse fixtures and fire test webhooks at http://localhost%s/\n", addr)
 	fmt.Printf("mockc2: Send button POSTs to %s\n", *target)
 	log.Fatal(http.ListenAndServe(addr, mux))
-}
-
-// loadDotEnv reads key=value pairs from .env into the process environment.
-// It does not override variables already set in the environment.
-func loadDotEnv() {
-	f, err := os.Open(".env")
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		line = strings.TrimPrefix(line, "export ")
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		k = strings.TrimSpace(k)
-		v = strings.TrimSpace(v)
-		if len(v) >= 2 {
-			if (v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'') {
-				v = v[1 : len(v)-1]
-			}
-		}
-		if os.Getenv(k) == "" {
-			os.Setenv(k, v) //nolint:errcheck
-		}
-	}
 }
 
 func envOrDefault(key, def string) string {

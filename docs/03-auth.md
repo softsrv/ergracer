@@ -4,7 +4,7 @@
 
 Auth is built on two token types: a short-lived JWT access token (15 minutes) and a long-lived opaque refresh token (30 days). The access token travels in a cookie and optionally in `Authorization: Bearer` headers. The refresh token travels only as an `HttpOnly` cookie and is never readable by JavaScript.
 
-All sensitive values (refresh tokens, password reset tokens, email verification tokens) are hashed with SHA-256 before storage. The raw value is transmitted once to the client and never persisted.
+All sensitive values (refresh tokens, email verification tokens) are hashed with SHA-256 before storage. The raw value is transmitted once to the client and never persisted.
 
 ---
 
@@ -44,22 +44,7 @@ The access token is also accepted from `Authorization: Bearer <token>` to suppor
 | Cookie flags | `HttpOnly`, `Secure` (production), `SameSite=Lax`                      |
 | Rotation     | None — the same refresh token is reused until it expires or is revoked |
 
-**No rotation.** `Refresh` issues a fresh access token but returns the _same_ refresh token, updating `last_used_at` and device metadata in place. There is no token-family or replay-theft-detection machinery. A refresh token is invalidated only by logout, password reset, or expiry.
-
----
-
-## Password Requirements
-
-**Validation rules:**
-
-- Minimum 8 characters (configurable via `PASSWORD_MIN_LENGTH`)
-- Maximum 72 bytes — bcrypt silently truncates input beyond 72 bytes, so `users.ValidatePassword` rejects longer passwords rather than hashing a truncated value
-- No complexity requirements — length beats complexity for user-chosen passwords
-
-**Storage:**
-
-- bcrypt with cost factor 12 (configurable via `BCRYPT_COST`)
-- Passwords are never logged, never returned in responses, never stored in plaintext
+**No rotation.** `Refresh` issues a fresh access token but returns the _same_ refresh token, updating `last_used_at` and device metadata in place. There is no token-family or replay-theft-detection machinery. A refresh token is invalidated only by logout or expiry.
 
 ---
 
@@ -73,47 +58,7 @@ The access token is also accepted from `Authorization: Bearer <token>` to suppor
 
 ## Login Flow
 
-```
-Client                        Handler              AuthService             DB
-  |                              |                     |                    |
-  |--- POST /auth/login -------->|                     |                    |
-  |    {email, password}         |                     |                    |
-  |                              |-- Login(req) ------->|                    |
-  |                              |                     |-- GetUserByEmail -->|
-  |                              |                     |<-- User / nil ------|
-  |                              |                     |                    |
-  |                              |       [email not found?]                 |
-  |                              |       → bcrypt.Compare against a dummy    |
-  |                              |         hash (timing equalizer), 401      |
-  |                              |                     |                    |
-  |                              |       [locked_until in future?]          |
-  |                              |       YES → return 423                   |
-  |                              |                     |                    |
-  |                              |       bcrypt.Compare(password)           |
-  |                              |       FAIL → increment attempts,         |
-  |                              |              after 10 → lock 1h, 401     |
-  |                              |       OK   → reset attempts + lock       |
-  |                              |                     |                    |
-  |                              |       generate JWT (15m)                 |
-  |                              |       generate refresh token             |
-  |                              |       SHA-256 hash refresh token         |
-  |                              |                     |-- InsertRefreshToken|
-  |                              |                     |   (with metadata)  |
-  |                              |<-- tokens -----------|                    |
-  |                              |                     |                    |
-  |<-- set-cookie: access_token -|                     |                    |
-  |<-- set-cookie: refresh_token |                     |                    |
-  |<-- 200 OK + user data -------|                     |                    |
-```
-
-**Failed login handling:**
-
-- Every failed attempt increments `failed_login_attempts` for the matching user
-- After 10 failures: `locked_until = NOW() + INTERVAL '1 hour'`
-- At the start of any login attempt: if `locked_until IS NOT NULL AND locked_until > NOW()` → return 423 immediately, do not check password
-- On success: set `failed_login_attempts = 0`, set `locked_until = NULL`
-
-**Email enumeration / timing:** the error message for "email not found" is identical to "wrong password". When the email does not exist, `Login` still runs a bcrypt comparison against a precomputed dummy hash so that response latency does not reveal whether the email is registered.
+Account creation and login happen exclusively via Discord OAuth (see `OAuthService`) — there is no password-based login. The OAuth callback either finds an existing linked user or provisions a new one, then issues a token pair the same way the flows below describe.
 
 **Device metadata captured at login:**
 
@@ -166,7 +111,7 @@ Applied to protected routes (per-route, not globally). Order of evaluation:
 7. Attach user to `context.Context` under a typed key
 8. Call `next` handler
 
-**On expiry (401):** the middleware sets `HX-Trigger: token-expired` for HTMX requests. A listener in `web/static/js/app.js` catches the event, calls `/auth/refresh`, and retries on success or redirects to `/login` on failure. On a missing token the middleware sets `HX-Redirect: /login`. An authenticated-but-unverified user is redirected to `/verify-email`.
+**On expiry (401):** the middleware sets `HX-Trigger: token-expired` for HTMX requests. A listener in `web/static/js/app.js` catches the event, calls `/auth/refresh`, and retries on success or redirects to `/` on failure. On a missing token the middleware sets `HX-Redirect: /`.
 
 ---
 
@@ -178,7 +123,7 @@ Applied to protected routes (per-route, not globally). Order of evaluation:
 2. Hash and look up in DB
 3. Set `revoked_at = NOW()` for that token (no-op if the token is unknown)
 4. Clear both `access_token` and `refresh_token` cookies (zero-length, expired)
-5. Redirect to `/login`
+5. Redirect to `/dashboard`
 
 ---
 
@@ -199,36 +144,6 @@ Applied to protected routes (per-route, not globally). Order of evaluation:
 - Verify the token belongs to the current user (authorization check — not just authentication). Ownership failures are masked as **404** so they don't confirm a token exists.
 - Set `revoked_at = NOW()`
 - If the revoked token is the caller's current session, respond with a logout redirect; otherwise return the updated session-list fragment for HTMX swap
-
-### Revoke All Sessions
-
-Triggered automatically on **password reset**: all refresh tokens for the user are revoked in the same transaction that updates the password, forcing re-login on every device.
-
----
-
-## Password Reset Flow
-
-### Request Reset (`POST /auth/forgot-password`)
-
-1. Always return `200 OK` with "If that email is registered, a reset link has been sent." — prevents email enumeration
-2. If the email exists in DB:
-   - Check rate limit: max 3 requests per hour per email (counted from the DB)
-   - Generate a 32-byte cryptographically random token; URL-safe base64-encode for the link
-   - SHA-256 hash the raw token; store the hash in `password_reset_tokens` with `expires_at = NOW() + 1 hour`
-   - Send email containing `{APP_BASE_URL}/reset-password?token={raw_token}`
-
-### Complete Reset (`POST /auth/reset-password`)
-
-1. Receive `token` (URL query param or form field) and `new_password`
-2. Validate the new password against policy
-3. SHA-256 hash the token; look up in `password_reset_tokens`
-4. Reject if: not found, `used_at IS NOT NULL`, or `expires_at < NOW()`
-5. In a transaction:
-   - `bcrypt.GenerateFromPassword(newPassword, cost)` → update `users.password_hash` (the `UpdatePasswordHash` query also clears `failed_login_attempts` and `locked_until`)
-   - Set `password_reset_tokens.used_at = NOW()`
-   - Revoke all `refresh_tokens` for the user (`revoked_at = NOW()`)
-6. Send password-change confirmation email
-7. Redirect to `/login`
 
 ---
 
@@ -274,13 +189,10 @@ A global `BodyLimit` middleware wraps the mux and caps request bodies at 1 MiB (
 
 Implemented as in-memory middleware using `sync.Map` with atomic counters and TTL-based expiry. Does not require Redis. Not shared across multiple instances (acceptable for initial deployment; Redis can be layered in later).
 
-| Endpoint                     | Limit       | Window     | Key                                   |
-| ---------------------------- | ----------- | ---------- | ------------------------------------- |
-| `POST /auth/login`           | 5 attempts  | 15 minutes | IP address                            |
-| `POST /auth/register`        | 3 attempts  | 1 hour     | IP address                            |
-| `POST /auth/refresh`         | 10 attempts | 1 minute   | refresh token hash (falls back to IP) |
-| `POST /auth/forgot-password` | 3 requests  | 1 hour     | lowercase email                       |
-| `POST /auth/reset-password`  | 5 attempts  | 1 hour     | IP address                            |
+| Endpoint                                                 | Limit       | Window     | Key                                   |
+| --------------------------------------------------------- | ----------- | ---------- | ------------------------------------- |
+| `POST /auth/refresh`, `GET /auth/silent-refresh`           | 10 attempts | 1 minute   | refresh token hash (falls back to IP) |
+| `GET /auth/discord/login`, `GET /auth/discord/callback`    | 10 attempts | 15 minutes | IP address                            |
 
 **Response when limit exceeded:**
 
@@ -293,20 +205,18 @@ Implemented as in-memory middleware using `sync.Map` with atomic counters and TT
 
 ## Security Invariants
 
-| Concern                            | Mitigation                                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------------------------- |
-| Password storage                   | bcrypt cost 12; passwords capped at 72 bytes; never logged or returned                      |
-| Refresh token storage              | SHA-256 hashed; raw token transmitted once, never persisted                                 |
-| Reset / verification token storage | SHA-256 hashed; raw token only in the emailed link                                          |
-| Token comparison                   | tokens are looked up by SHA-256 hash; bcrypt for passwords                                  |
-| SQL injection                      | Parameterized queries only (sqlc-generated)                                                 |
-| XSS                                | `html/template` auto-escaping; HTMX responses are also HTML-escaped                         |
-| CSRF                               | `SameSite=Lax` cookies + same-origin form posts (no CSRF tokens)                            |
-| Session theft                      | HttpOnly cookies prevent JS access to tokens                                                |
-| Cookie security                    | `Secure=true` gated on `APP_ENV=production`                                                 |
-| Email enumeration                  | Identical messages for found/not-found; dummy-hash timing equalizer on login                |
-| Brute force                        | Account lockout after 10 failures; IP-level rate limits                                     |
-| Token revocation                   | Logout and password reset revoke refresh tokens; expired/revoked tokens rejected at refresh |
+| Concern                     | Mitigation                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| Refresh token storage       | SHA-256 hashed; raw token transmitted once, never persisted                 |
+| Verification token storage  | SHA-256 hashed; raw token only in the emailed link                          |
+| Token comparison            | Tokens are looked up by SHA-256 hash                                        |
+| SQL injection                | Parameterized queries only (sqlc-generated)                                 |
+| XSS                          | `html/template` auto-escaping; HTMX responses are also HTML-escaped         |
+| CSRF                         | `SameSite=Lax` cookies + same-origin form posts (no CSRF tokens)            |
+| Session theft                | HttpOnly cookies prevent JS access to tokens                                |
+| Cookie security               | `Secure=true` gated on `APP_ENV=production`                                 |
+| Brute force                   | IP-level rate limits on Discord OAuth login/callback and token refresh      |
+| Token revocation              | Logout revokes the refresh token; expired/revoked tokens rejected at refresh |
 | Oversized payloads                 | 1 MiB request body limit via `http.MaxBytesReader`                                          |
 | CORS                               | Not configured; all clients served from same origin                                         |
 | Secrets in images                  | Docker build args used only for tooling; secrets come from env vars at runtime              |

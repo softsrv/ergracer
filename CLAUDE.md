@@ -57,20 +57,18 @@ Middleware (internal/http/middleware/)  ← auth, rate limiting, security header
 
 | Package | Purpose |
 |---|---|
-| `internal/app/` | `AuthService` and `UserService` — all auth flows, password reset, email verification |
-| `internal/auth/` | JWT issue/validate, token hashing (SHA-256), refresh/reset/verification token generation |
+| `internal/app/` | `AuthService` and `UserService` — session lifecycle, Discord OAuth account provisioning |
+| `internal/auth/` | JWT issue/validate, token hashing (SHA-256), refresh/verification token generation |
 | `internal/db/` | sqlc-generated repository code; never edit by hand — regenerate with `make sqlc-generate` |
 | `internal/http/` | Router wiring in `router.go`; handlers and middleware in sub-packages |
-| `internal/users/` | Email normalization and validation, password validation |
+| `internal/users/` | Email normalization |
 
 ### Auth design
 
 - **Access tokens**: JWT (HS256), 15-minute lifetime, delivered as `access_token` httpOnly cookie and in response body.
 - **Refresh tokens**: 32-byte random, SHA-256 hashed before DB storage, 30-day lifetime, `refresh_token` httpOnly cookie. **No rotation** — `Refresh` issues a new access token and reuses the same refresh token, updating `last_used_at` and device metadata in place.
 - **Cookies**: `SameSite=Lax`, httpOnly, `Secure` in production. No CSRF tokens — CSRF is mitigated by SameSite=Lax plus same-origin form posts.
-- **Email verification**: link-based. A 32-byte token (SHA-256 hashed in DB, 24h lifetime) is emailed; the public `GET /auth/verify-email?token=` endpoint marks the email verified and auto-logs the user in.
-- **Login timing**: when the email is unknown, `Login` still runs a bcrypt comparison against a precomputed dummy hash so response latency doesn't reveal which emails are registered.
-- **Account locking**: 10 failed login attempts → `locked_until = NOW() + 1h`.
+- **Account creation and login**: Discord OAuth only — no passwords anywhere in the system.
 - **Token cleanup**: background goroutine fires daily at 03:00; purges expired/revoked tokens per retention policy.
 
 ### Template rendering
@@ -87,7 +85,7 @@ RequestID → Logging → SecurityHeaders → BodyLimit → mux
 
 ### Rate limiting
 
-In-memory (`sync.Map`), not shared across instances. Key functions: `IPKeyFunc`, `CookieRefreshTokenKeyFunc`, `FormEmailKeyFunc`. Limits: login 5/15min, register 3/hr, refresh 10/min, forgot-password 3/hr, reset-password 5/hr.
+In-memory (`sync.Map`), not shared across instances. Key functions: `IPKeyFunc`, `CookieRefreshTokenKeyFunc`. Limits: refresh 10/min (refresh token hash), Discord OAuth login/callback 10/15min (IP).
 
 ## Database
 
@@ -99,11 +97,12 @@ pgxpool config: max 25 conns (`DB_MAX_CONNS`), min 5, max lifetime 1h, idle time
 
 Copy `.env.example` to `.env`. Required vars: `DATABASE_URL`, `JWT_SECRET` (≥32 bytes), `APP_BASE_URL`. `APP_ENV=production` gates JSON logging, secure cookies, and suppresses debug error detail.
 
+`cmd/app`, `cmd/dbreset`, and `cmd/mockc2` each load `./.env` themselves at startup via `godotenv` — the Makefile does not read or export it, and `cmd/app`/`cmd/dbreset` fail fast if the file is missing (`cmd/mockc2` is best-effort, since it's a standalone testing tool with its own CLI flags). `godotenv.Load` never overrides a variable already present in the process environment, so real deployment env vars always win over the file. Docker never bakes `.env` into the image (see `.dockerignore`); `make docker-run` bind-mounts it read-only to `/app/.env` at container start instead. The `migrate-*` Makefile targets are the one exception — `migrate` is a third-party CLI that can't load `.env` itself, so `DATABASE_URL` must already be exported in your shell before running them.
+
 ## Tech constraints
 
 - Go stdlib first; propose libraries with rationale before adding.
 - `html/template` only (not `text/template`) — auto-escaping prevents XSS.
 - No frontend frameworks; HTMX for dynamics.
 - Parameterized SQL only (sqlc enforces this).
-- bcrypt cost factor 12; passwords capped at 72 bytes (bcrypt's input limit) in `users.ValidatePassword`.
 - UUIDv7 via `github.com/google/uuid`.

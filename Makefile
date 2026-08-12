@@ -2,13 +2,15 @@ APP_NAME         := rowbot
 BIN_DIR          := ./bin
 MODULE           := github.com/softsrv/rowbot
 
-# Load .env if present (for local dev convenience)
--include .env
-export
+# cmd/app, cmd/dbreset, and cmd/mockc2 each load ./.env themselves at startup
+# (via godotenv) — this Makefile no longer reads or exports it. The one
+# exception is the migrate-* targets below: `migrate` is a third-party CLI,
+# not our code, so it can't load .env itself — export DATABASE_URL in your
+# shell first (e.g. `set -a && source .env && set +a`) before running them.
 
 .PHONY: dev stop run build test fmt lint \
         daisyui-install tailwind tailwind-watch \
-        migrate-up migrate-down migrate-create migrate-status \
+        migrate-up migrate-down migrate-create migrate-status check-database-url \
         sqlc-generate db-reset \
         docker-build docker-run prod clean
 
@@ -75,18 +77,21 @@ tailwind-watch:
 
 ## ── Database ─────────────────────────────────────────────────────────────────
 
-migrate-up:
+migrate-up: check-database-url
 	migrate -path db/migrations -database "$(DATABASE_URL)" up
 
-migrate-down:
+migrate-down: check-database-url
 	migrate -path db/migrations -database "$(DATABASE_URL)" down 1
 
 migrate-create:
 	@test -n "$(NAME)" || (echo "Usage: make migrate-create NAME=<name>" && exit 1)
 	migrate create -ext sql -dir db/migrations -seq $(NAME)
 
-migrate-status:
+migrate-status: check-database-url
 	migrate -path db/migrations -database "$(DATABASE_URL)" version
+
+check-database-url:
+	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is not set — export it first, e.g.: set -a && source .env && set +a" && exit 1)
 
 sqlc-generate:
 	sqlc generate -f db/sqlc.yaml
@@ -103,7 +108,7 @@ docker-build:
 
 docker-run:
 	docker run --rm -d \
-	  --env-file .env \
+	  -v $(CURDIR)/.env:/app/.env:ro \
 	  -p $(or $(PORT),8080):$(or $(PORT),8080) \
 	  $(APP_NAME):dev
 

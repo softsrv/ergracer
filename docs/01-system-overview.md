@@ -17,7 +17,6 @@ A production-ready web application built for longevity and maintainability. The 
 | Migrations | golang-migrate | SQL-first, version-controlled schema changes |
 | Auth tokens | JWT (HS256) + opaque refresh tokens | Short-lived access + long-lived non-rotating refresh |
 | UUID generation | google/uuid (UUIDv7) | Time-ordered, collision-resistant IDs |
-| Password hashing | bcrypt (cost 12) | Industry standard; cost factor tuned for security/performance |
 | Logging | `log/slog` (stdlib) | Structured; JSON in production, text in development |
 | Deployment | Docker (multi-stage) | Minimal runtime image; secrets via env vars only |
 
@@ -46,12 +45,12 @@ Cross-cutting concerns (auth, logging, security headers, body-size limit, rate l
 │
 ├── internal/
 │   ├── app/                     # Service layer — business logic and orchestration
-│   │   ├── auth_service.go      # Login, logout, token issue/refresh, password reset
-│   │   └── user_service.go      # User registration, profile, verification
+│   │   ├── auth_service.go      # Session lifecycle: logout, token issue/refresh
+│   │   └── user_service.go      # User profile, session listing
 │   │
 │   ├── auth/                    # Auth primitives — JWT, token hashing
 │   │   ├── jwt.go               # Issue and validate access tokens
-│   │   └── tokens.go            # Refresh/reset/verification token generation, SHA-256 hashing
+│   │   └── tokens.go            # Refresh/verification token generation, SHA-256 hashing
 │   │
 │   ├── db/                      # sqlc-generated code (do not edit by hand)
 │   │   ├── db.go                # Querier interface and DBTX abstraction
@@ -59,7 +58,7 @@ Cross-cutting concerns (auth, logging, security headers, body-size limit, rate l
 │   │   └── queries.sql.go       # Generated typed query functions
 │   │
 │   ├── users/                   # User domain helpers (not the service layer)
-│   │   └── validate.go          # Email normalization, password validation
+│   │   └── validate.go          # Email normalization
 │   │
 │   └── http/
 │       ├── middleware/
@@ -72,7 +71,7 @@ Cross-cutting concerns (auth, logging, security headers, body-size limit, rate l
 │       │   └── logging.go         # Structured request/response logging
 │       │
 │       ├── handlers/
-│       │   ├── auth.go          # Login, register, logout, refresh, reset handlers
+│       │   ├── auth.go          # Silent-refresh, logout, refresh handlers
 │       │   ├── sessions.go      # Session list and revocation handlers
 │       │   └── health.go        # /health (liveness), /ready (readiness) endpoints
 │       │
@@ -81,11 +80,6 @@ Cross-cutting concerns (auth, logging, security headers, body-size limit, rate l
 ├── web/
 │   ├── templates/               # html/template files
 │   │   ├── base.html            # Root layout (nav, theme, JS includes)
-│   │   ├── auth/
-│   │   │   ├── login.html
-│   │   │   ├── register.html
-│   │   │   ├── forgot-password.html
-│   │   │   └── reset-password.html
 │   │   └── partials/            # HTMX swap targets (form errors, flash messages)
 │   │       ├── error.html
 │   │       └── flash.html
@@ -98,13 +92,11 @@ Cross-cutting concerns (auth, logging, security headers, body-size limit, rate l
 │
 ├── db/
 │   ├── migrations/              # golang-migrate numbered SQL files
-│   │   ├── 000001_create_users.up.sql
-│   │   ├── 000001_create_users.down.sql
-│   │   └── ...
+│   │   ├── 000001_initial_schema.up.sql
+│   │   └── 000001_initial_schema.down.sql
 │   ├── queries/                 # SQL source files consumed by sqlc
 │   │   ├── users.sql
 │   │   ├── refresh_tokens.sql
-│   │   ├── password_reset_tokens.sql
 │   │   └── email_verification_codes.sql
 │   └── sqlc.yaml                # sqlc configuration
 │

@@ -42,12 +42,10 @@ type pgxBeginner interface {
 // Using a config struct instead of positional parameters makes call sites
 // self-documenting and prevents accidental argument transposition.
 type AuthServiceConfig struct {
-	JWTSecret      string
-	AccessExpiry   time.Duration
-	RefreshExpiry  time.Duration
-	BCryptCost     int
-	PasswordMinLen int
-	AppBaseURL     string
+	JWTSecret     string
+	AccessExpiry  time.Duration
+	RefreshExpiry time.Duration
+	AppBaseURL    string
 }
 
 // AuthService handles all authentication business logic. Account creation and

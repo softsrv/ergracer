@@ -13,15 +13,12 @@ import (
 
 type Querier interface {
 	CountDiscordRegistrationsByGuild(ctx context.Context, guildID string) (int64, error)
-	CountRecentPasswordResetsByEmail(ctx context.Context, email string) (int64, error)
 	CountRecentVerificationCodesByUserID(ctx context.Context, userID uuid.UUID) (int64, error)
 	CreateOAuthIdentity(ctx context.Context, arg CreateOAuthIdentityParams) (OauthIdentity, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	CreateUserNoPassword(ctx context.Context, arg CreateUserNoPasswordParams) (User, error)
 	DeleteDiscordRegistration(ctx context.Context, arg DeleteDiscordRegistrationParams) error
 	DeleteExpiredRefreshTokens(ctx context.Context) (int64, error)
 	DeleteOAuthIdentity(ctx context.Context, id uuid.UUID) error
-	DeleteStalePasswordResetTokens(ctx context.Context) (int64, error)
 	DeleteStaleVerificationCodes(ctx context.Context) (int64, error)
 	DeleteUserByID(ctx context.Context, id uuid.UUID) error
 	GetDiscordGuildByGuildID(ctx context.Context, guildID string) (DiscordGuild, error)
@@ -31,15 +28,12 @@ type Querier interface {
 	GetOAuthIdentityByUserAndProvider(ctx context.Context, arg GetOAuthIdentityByUserAndProviderParams) (OauthIdentity, error)
 	GetOAuthTokenByIdentity(ctx context.Context, oauthIdentityID uuid.UUID) (OauthToken, error)
 	GetOldestRecentVerificationCode(ctx context.Context, userID uuid.UUID) (pgtype.Timestamptz, error)
-	GetPasswordResetTokenByHash(ctx context.Context, tokenHash string) (PasswordResetToken, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetRefreshTokenByID(ctx context.Context, id uuid.UUID) (RefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetVerificationCodeByTokenHash(ctx context.Context, tokenHash string) (EmailVerificationCode, error)
-	IncrementFailedLoginAttempts(ctx context.Context, id uuid.UUID) error
 	InsertEmailVerificationCode(ctx context.Context, arg InsertEmailVerificationCodeParams) (EmailVerificationCode, error)
-	InsertPasswordResetToken(ctx context.Context, arg InsertPasswordResetTokenParams) (PasswordResetToken, error)
 	InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) (RefreshToken, error)
 	LinkDiscordRegistrationToUser(ctx context.Context, arg LinkDiscordRegistrationToUserParams) error
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID uuid.UUID) ([]RefreshToken, error)
@@ -47,15 +41,11 @@ type Querier interface {
 	ListDiscordGuilds(ctx context.Context) ([]DiscordGuild, error)
 	ListDiscordRegistrationsByUser(ctx context.Context, userID pgtype.UUID) ([]DiscordRegistration, error)
 	ListOAuthIdentitiesByUser(ctx context.Context, userID uuid.UUID) ([]OauthIdentity, error)
-	LockAccount(ctx context.Context, arg LockAccountParams) error
-	MarkPasswordResetTokenUsed(ctx context.Context, id uuid.UUID) error
 	MarkVerificationCodeUsed(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	ResetLoginAttempts(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	SetEmailVerified(ctx context.Context, id uuid.UUID) error
 	SetSetupProgress(ctx context.Context, arg SetSetupProgressParams) error
-	UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error
 	UpdateRefreshTokenLastUsed(ctx context.Context, arg UpdateRefreshTokenLastUsedParams) error
 	UpsertDiscordGuild(ctx context.Context, arg UpsertDiscordGuildParams) (DiscordGuild, error)
 	UpsertDiscordRegistration(ctx context.Context, arg UpsertDiscordRegistrationParams) (DiscordRegistration, error)

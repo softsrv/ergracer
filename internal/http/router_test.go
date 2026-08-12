@@ -25,6 +25,12 @@ var routerTestTemplateFS = fstest.MapFS{
 	"templates/landing.html": &fstest.MapFile{Data: []byte(
 		`{{define "content"}}landing{{end}}`,
 	)},
+	"templates/terms.html": &fstest.MapFile{Data: []byte(
+		`{{define "content"}}terms{{end}}`,
+	)},
+	"templates/privacy.html": &fstest.MapFile{Data: []byte(
+		`{{define "content"}}privacy{{end}}`,
+	)},
 }
 
 func newRouterTestRenderer(t *testing.T) *handlers.TemplateRenderer {
@@ -105,5 +111,23 @@ func TestLandingPage_ValidAccessTokenRedirectsToDashboard(t *testing.T) {
 	}
 	if got := rr.Header().Get("Location"); got != "/dashboard" {
 		t.Errorf("redirect = %q, want /dashboard", got)
+	}
+}
+
+func TestTermsAndPrivacyPagesArePublic(t *testing.T) {
+	t.Parallel()
+	router := httpapp.NewRouter(context.Background(), httpapp.RouterConfig{
+		Renderer:  newRouterTestRenderer(t),
+		JWTSecret: routerTestJWTSecret,
+	})
+
+	for _, path := range []string{"/terms", "/privacy"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("%s: got %d, want 200", path, rr.Code)
+		}
 	}
 }

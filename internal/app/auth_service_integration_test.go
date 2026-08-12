@@ -37,18 +37,16 @@ func testAuthService(t *testing.T, pool *pgxpool.Pool) *app.AuthService {
 	t.Helper()
 	q := db.New(pool)
 	return app.NewAuthService(q, pool, app.AuthServiceConfig{
-		JWTSecret:      "integration-test-secret-32-bytes!!!",
-		AccessExpiry:   15 * time.Minute,
-		RefreshExpiry:  720 * time.Hour,
-		BCryptCost:     12,
-		PasswordMinLen: 8,
-		AppBaseURL:     "http://localhost:8080",
+		JWTSecret:     "integration-test-secret-32-bytes!!!",
+		AccessExpiry:  15 * time.Minute,
+		RefreshExpiry: 720 * time.Hour,
+		AppBaseURL:    "http://localhost:8080",
 	})
 }
 
-// testUser creates a user directly via the OAuth-style no-password path
-// (mirroring how every real account is now provisioned — Discord OAuth is the
-// sole account-creation path) so Refresh/Logout can be exercised without
+// testUser creates a user directly via db.Queries.CreateUser (mirroring how
+// every real account is provisioned — Discord OAuth is the sole
+// account-creation path) so Refresh/Logout can be exercised without
 // AuthService.Register/Login, which no longer exist.
 func testUser(t *testing.T, pool *pgxpool.Pool, email string) db.User {
 	t.Helper()
@@ -57,12 +55,12 @@ func testUser(t *testing.T, pool *pgxpool.Pool, email string) db.User {
 	if err != nil {
 		t.Fatalf("uuid.NewV7: %v", err)
 	}
-	user, err := q.CreateUserNoPassword(context.Background(), db.CreateUserNoPasswordParams{
+	user, err := q.CreateUser(context.Background(), db.CreateUserParams{
 		ID:    id,
 		Email: email,
 	})
 	if err != nil {
-		t.Fatalf("CreateUserNoPassword: %v", err)
+		t.Fatalf("CreateUser: %v", err)
 	}
 	return user
 }

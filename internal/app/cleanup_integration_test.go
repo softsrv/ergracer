@@ -24,9 +24,8 @@ func seedUser(t *testing.T, ctx context.Context, pool *pgxpool.Pool) uuid.UUID {
 		t.Fatalf("seedUser uuid: %v", err)
 	}
 	if _, err := db.New(pool).CreateUser(ctx, db.CreateUserParams{
-		ID:           id,
-		Email:        fmt.Sprintf("cleanup-test-%s@example.com", id),
-		PasswordHash: "$2a$12$placeholder",
+		ID:    id,
+		Email: fmt.Sprintf("cleanup-test-%s@example.com", id),
 	}); err != nil {
 		t.Fatalf("seedUser CreateUser: %v", err)
 	}
@@ -111,70 +110,6 @@ func TestIntegration_TokenCleanup_RefreshTokens(t *testing.T) {
 	}
 	if !exists(t, ctx, pool, "refresh_tokens", freshRevoked) {
 		t.Error("recently revoked refresh token (1d ago) should not have been deleted")
-	}
-}
-
-// TestIntegration_TokenCleanup_PasswordResetTokens verifies the two password-reset
-// deletion conditions:
-//
-//   - used more than 7 days ago            → deleted
-//   - expired more than 7 days ago         → deleted
-//   - used less than 7 days ago            → preserved
-//   - pending (not yet expired, not used)  → preserved
-func TestIntegration_TokenCleanup_PasswordResetTokens(t *testing.T) {
-	pool := testDB(t)
-	ctx := context.Background()
-	userID := seedUser(t, ctx, pool)
-
-	insertPRT := func(tokenHash string, expiresAt time.Time, usedAt *time.Time) uuid.UUID {
-		t.Helper()
-		id, err := uuid.NewV7()
-		if err != nil {
-			t.Fatalf("uuid: %v", err)
-		}
-		if usedAt != nil {
-			if _, err := pool.Exec(ctx, `
-				INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at, used_at)
-				VALUES ($1, $2, $3, $4, NOW(), $5)`,
-				id, userID, tokenHash, expiresAt, *usedAt,
-			); err != nil {
-				t.Fatalf("insert password reset token: %v", err)
-			}
-		} else {
-			if _, err := pool.Exec(ctx, `
-				INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at)
-				VALUES ($1, $2, $3, $4, NOW())`,
-				id, userID, tokenHash, expiresAt,
-			); err != nil {
-				t.Fatalf("insert password reset token: %v", err)
-			}
-		}
-		return id
-	}
-
-	now := time.Now()
-	ago8 := now.Add(-8 * 24 * time.Hour)
-	ago1 := now.Add(-24 * time.Hour)
-	future := now.Add(time.Hour)
-
-	staleUsed := insertPRT("prt-stale-used", future, &ago8)     // used_at > 7d ago → deleted
-	staleExpired := insertPRT("prt-stale-expired", ago8, nil)   // expires_at > 7d ago → deleted
-	freshUsed := insertPRT("prt-fresh-used", future, &ago1)     // used_at only 1d ago → preserved
-	freshPending := insertPRT("prt-fresh-pending", future, nil) // not expired, not used → preserved
-
-	app.CleanupTokens(ctx, db.New(pool))
-
-	if exists(t, ctx, pool, "password_reset_tokens", staleUsed) {
-		t.Error("used password reset token (8d ago) should have been deleted")
-	}
-	if exists(t, ctx, pool, "password_reset_tokens", staleExpired) {
-		t.Error("expired password reset token (8d ago) should have been deleted")
-	}
-	if !exists(t, ctx, pool, "password_reset_tokens", freshUsed) {
-		t.Error("recently used password reset token (1d ago) should not have been deleted")
-	}
-	if !exists(t, ctx, pool, "password_reset_tokens", freshPending) {
-		t.Error("pending password reset token should not have been deleted")
 	}
 }
 

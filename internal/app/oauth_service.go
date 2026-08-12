@@ -211,7 +211,7 @@ func (s *OAuthService) resolveDiscordAccount(ctx context.Context, discordUser oa
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("generate user id: %w", err)
 	}
-	newUser, err := qtx.CreateUserNoPassword(ctx, db.CreateUserNoPasswordParams{
+	newUser, err := qtx.CreateUser(ctx, db.CreateUserParams{
 		ID:    newUserID,
 		Email: normalizedEmail,
 	})

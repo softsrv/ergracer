@@ -28,10 +28,8 @@ The central identity table. Email is always stored lowercase. UUIDs are version 
 CREATE TABLE users (
     id                    UUID PRIMARY KEY,            -- UUIDv7
     email                 TEXT NOT NULL UNIQUE,         -- stored lowercase
-    password_hash         TEXT NOT NULL,                -- bcrypt cost 12
     email_verified        BOOLEAN NOT NULL DEFAULT false,
-    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
-    locked_until          TIMESTAMPTZ,                  -- null = not locked
+    setup_progress        INTEGER NOT NULL DEFAULT 1,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -41,8 +39,6 @@ CREATE INDEX idx_users_email ON users (email);
 
 **Key invariants:**
 - `email` is normalized to lowercase before every write and every lookup.
-- `locked_until` is set to `NOW() + 1 hour` after 10 consecutive failed login attempts; it is cleared to `NULL` on successful login.
-- `failed_login_attempts` is reset to `0` on successful login.
 - `updated_at` is maintained by the application layer (not a trigger) to avoid hidden side effects.
 
 ---
@@ -75,33 +71,7 @@ CREATE INDEX idx_refresh_tokens_expires_at   ON refresh_tokens (expires_at);
 **Key invariants:**
 - `token_hash` is `hex(SHA-256(raw_token))`. The raw token is never stored.
 - Each login creates exactly one row; refresh updates that row rather than creating a new one.
-- `revoked_at` being non-null means the token is dead (set on logout or password reset). The daily cleanup job purges expired/revoked rows per the retention policy.
-
----
-
-### `password_reset_tokens`
-
-Single-use tokens sent via email for password reset. The raw token travels only in the reset link URL; only its hash is stored.
-
-```sql
-CREATE TABLE password_reset_tokens (
-    id          UUID PRIMARY KEY,          -- UUIDv7
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash  TEXT NOT NULL,             -- SHA-256(raw_token), hex-encoded
-    expires_at  TIMESTAMPTZ NOT NULL,      -- 1 hour from creation
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    used_at     TIMESTAMPTZ               -- null = not yet used
-);
-
-CREATE INDEX idx_prt_token_hash ON password_reset_tokens (token_hash);
-CREATE INDEX idx_prt_user_id    ON password_reset_tokens (user_id);
-CREATE INDEX idx_prt_expires_at ON password_reset_tokens (expires_at);
-```
-
-**Key invariants:**
-- `used_at` is set atomically when the token is consumed. A second attempt with the same token is rejected.
-- Tokens older than 1 hour are considered expired regardless of `used_at`.
-- The cleanup job removes rows where `used_at` or `expires_at` is older than 7 days.
+- `revoked_at` being non-null means the token is dead (set on logout). The daily cleanup job purges expired/revoked rows per the retention policy.
 
 ---
 
@@ -142,8 +112,6 @@ db/migrations/
   000001_create_users.down.sql
   000002_create_refresh_tokens.up.sql
   000002_create_refresh_tokens.down.sql
-  000003_create_password_reset_tokens.up.sql
-  000003_create_password_reset_tokens.down.sql
   000004_create_email_verification_codes.up.sql
   000004_create_email_verification_codes.down.sql
 ```
@@ -202,9 +170,7 @@ A background goroutine started in `main.go` runs daily at 03:00 server time to p
 |---|---|---|
 | `refresh_tokens` | `expires_at < NOW() - 90 days` | 90 days post-expiry |
 | `refresh_tokens` | `revoked_at < NOW() - 90 days` | 90 days post-revocation |
-| `password_reset_tokens` | `used_at < NOW() - 7 days` | 7 days |
-| `password_reset_tokens` | `expires_at < NOW() - 7 days` | 7 days post-expiry |
 | `email_verification_codes` | `used_at < NOW() - 7 days` | 7 days |
 | `email_verification_codes` | `expires_at < NOW() - 1 day` | 1 day post-expiry |
 
-Retention rationale: refresh tokens are kept 90 days for forensic audit (theft detection timelines). Reset and verification records have no forensic value after use and are removed sooner.
+Retention rationale: refresh tokens are kept 90 days for forensic audit (theft detection timelines). Verification records have no forensic value after use and are removed sooner.

@@ -70,15 +70,6 @@ type OauthToken struct {
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
-type PasswordResetToken struct {
-	ID        uuid.UUID          `json:"id"`
-	UserID    uuid.UUID          `json:"user_id"`
-	TokenHash string             `json:"token_hash"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UsedAt    pgtype.Timestamptz `json:"used_at"`
-}
-
 type RefreshToken struct {
 	ID         uuid.UUID          `json:"id"`
 	UserID     uuid.UUID          `json:"user_id"`
@@ -93,13 +84,10 @@ type RefreshToken struct {
 }
 
 type User struct {
-	ID                  uuid.UUID          `json:"id"`
-	Email               string             `json:"email"`
-	PasswordHash        pgtype.Text        `json:"password_hash"`
-	EmailVerified       bool               `json:"email_verified"`
-	FailedLoginAttempts int32              `json:"failed_login_attempts"`
-	LockedUntil         pgtype.Timestamptz `json:"locked_until"`
-	SetupProgress       int32              `json:"setup_progress"`
-	CreatedAt           pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	ID            uuid.UUID          `json:"id"`
+	Email         string             `json:"email"`
+	EmailVerified bool               `json:"email_verified"`
+	SetupProgress int32              `json:"setup_progress"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }

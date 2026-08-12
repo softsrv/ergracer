@@ -9,59 +9,26 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
-VALUES ($1, $2, $3, false, NOW(), NOW())
-RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at
+INSERT INTO users (id, email, email_verified, created_at, updated_at)
+VALUES ($1, $2, true, NOW(), NOW())
+RETURNING id, email, email_verified, setup_progress, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	ID           uuid.UUID   `json:"id"`
-	Email        string      `json:"email"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.PasswordHash,
-		&i.EmailVerified,
-		&i.FailedLoginAttempts,
-		&i.LockedUntil,
-		&i.SetupProgress,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createUserNoPassword = `-- name: CreateUserNoPassword :one
-INSERT INTO users (id, email, password_hash, email_verified, created_at, updated_at)
-VALUES ($1, $2, NULL, true, NOW(), NOW())
-RETURNING id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at
-`
-
-type CreateUserNoPasswordParams struct {
 	ID    uuid.UUID `json:"id"`
 	Email string    `json:"email"`
 }
 
-func (q *Queries) CreateUserNoPassword(ctx context.Context, arg CreateUserNoPasswordParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUserNoPassword, arg.ID, arg.Email)
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Email)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.PasswordHash,
 		&i.EmailVerified,
-		&i.FailedLoginAttempts,
-		&i.LockedUntil,
 		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -79,7 +46,7 @@ func (q *Queries) DeleteUserByID(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at FROM users WHERE email = $1 LIMIT 1
+SELECT id, email, email_verified, setup_progress, created_at, updated_at FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -88,10 +55,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.PasswordHash,
 		&i.EmailVerified,
-		&i.FailedLoginAttempts,
-		&i.LockedUntil,
 		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -100,7 +64,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, email_verified, failed_login_attempts, locked_until, setup_progress, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
+SELECT id, email, email_verified, setup_progress, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -109,47 +73,12 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.PasswordHash,
 		&i.EmailVerified,
-		&i.FailedLoginAttempts,
-		&i.LockedUntil,
 		&i.SetupProgress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const incrementFailedLoginAttempts = `-- name: IncrementFailedLoginAttempts :exec
-UPDATE users SET failed_login_attempts = failed_login_attempts + 1, updated_at = NOW() WHERE id = $1
-`
-
-func (q *Queries) IncrementFailedLoginAttempts(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, incrementFailedLoginAttempts, id)
-	return err
-}
-
-const lockAccount = `-- name: LockAccount :exec
-UPDATE users SET locked_until = $2, updated_at = NOW() WHERE id = $1
-`
-
-type LockAccountParams struct {
-	ID          uuid.UUID          `json:"id"`
-	LockedUntil pgtype.Timestamptz `json:"locked_until"`
-}
-
-func (q *Queries) LockAccount(ctx context.Context, arg LockAccountParams) error {
-	_, err := q.db.Exec(ctx, lockAccount, arg.ID, arg.LockedUntil)
-	return err
-}
-
-const resetLoginAttempts = `-- name: ResetLoginAttempts :exec
-UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $1
-`
-
-func (q *Queries) ResetLoginAttempts(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, resetLoginAttempts, id)
-	return err
 }
 
 const setEmailVerified = `-- name: SetEmailVerified :exec
@@ -172,19 +101,5 @@ type SetSetupProgressParams struct {
 
 func (q *Queries) SetSetupProgress(ctx context.Context, arg SetSetupProgressParams) error {
 	_, err := q.db.Exec(ctx, setSetupProgress, arg.ID, arg.SetupProgress)
-	return err
-}
-
-const updatePasswordHash = `-- name: UpdatePasswordHash :exec
-UPDATE users SET password_hash = $2, failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $1
-`
-
-type UpdatePasswordHashParams struct {
-	ID           uuid.UUID   `json:"id"`
-	PasswordHash pgtype.Text `json:"password_hash"`
-}
-
-func (q *Queries) UpdatePasswordHash(ctx context.Context, arg UpdatePasswordHashParams) error {
-	_, err := q.db.Exec(ctx, updatePasswordHash, arg.ID, arg.PasswordHash)
 	return err
 }
