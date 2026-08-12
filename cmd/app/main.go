@@ -30,13 +30,20 @@ import (
 	"github.com/softsrv/rowbot/web"
 )
 
-// envFilePath is where the app expects its .env file, resolved relative to
-// the working directory: the repo root when run locally (go run, air), and
-// /app inside the container (Dockerfile's WORKDIR) — so a Docker deployment
-// must bind-mount its env file to /app/.env.
-const envFilePath = ".env"
+// defaultEnvFilePath is where the app expects its .env file when ENV_FILE_PATH
+// isn't set, resolved relative to the working directory: the repo root when
+// run locally (go run, air), and /app inside the container (Dockerfile's
+// WORKDIR). Override via ENV_FILE_PATH when that default collides with
+// something else mounted into the same directory — e.g. Cloud Run secret
+// volumes replace the entire directory they're mounted at, so mounting one
+// directly over /app would shadow the compiled binary itself.
+const defaultEnvFilePath = ".env"
 
 func main() {
+	envFilePath := os.Getenv("ENV_FILE_PATH")
+	if envFilePath == "" {
+		envFilePath = defaultEnvFilePath
+	}
 	if err := godotenv.Load(envFilePath); err != nil {
 		slog.Error("load env file", "path", envFilePath, "error", err)
 		os.Exit(1)

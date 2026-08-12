@@ -13,8 +13,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// envFilePath mirrors cmd/app's — see its comment for why it's a relative path.
-const envFilePath = ".env"
+// defaultEnvFilePath mirrors cmd/app's — see its comment for why it's a
+// relative path, and why ENV_FILE_PATH can override it.
+const defaultEnvFilePath = ".env"
 
 func main() {
 	if err := run(); err != nil {
@@ -24,6 +25,10 @@ func main() {
 }
 
 func run() error {
+	envFilePath := os.Getenv("ENV_FILE_PATH")
+	if envFilePath == "" {
+		envFilePath = defaultEnvFilePath
+	}
 	if err := godotenv.Load(envFilePath); err != nil {
 		return fmt.Errorf("load env file %s: %w", envFilePath, err)
 	}
